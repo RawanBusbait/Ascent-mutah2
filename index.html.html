@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent of Mutah · جبل مؤتة</title>
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<style>
+:root{--gold:#d4a24e;--ink:#07090d;--card:rgba(8,11,17,.74)}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:auto}
+body{background:var(--ink);color:#e8e2d5;font-family:Georgia,'Times New Roman',serif;overflow-x:hidden}
+#gl{position:fixed;inset:0;z-index:0}
+#gl canvas{display:block}
+#journey{position:relative;height:720vh;z-index:1;pointer-events:none}
+#vig{position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.55) 100%);opacity:.6;transition:opacity .6s}
+/* intro */
+#intro{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;z-index:6;pointer-events:none;transition:opacity .8s;padding:0 20px;text-shadow:0 2px 24px #000}
+#intro h1{font-size:clamp(34px,7vw,84px);letter-spacing:.12em;font-weight:400}
+#intro h1 span{display:block;font-size:.35em;color:var(--gold);letter-spacing:.4em;margin-top:10px}
+#intro p{max-width:580px;margin-top:22px;color:#cfc8b8;font-size:15px;line-height:1.7}
+#intro .hint{margin-top:34px;font-size:12px;letter-spacing:.3em;color:#a39a86;animation:bob 2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(8px)}}
+@media(prefers-reduced-motion:reduce){#intro .hint{animation:none}}
+/* act card */
+#card{position:fixed;left:26px;bottom:30px;width:min(440px,calc(100vw - 52px));z-index:5;pointer-events:none;
+  background:var(--card);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(212,162,78,.28);
+  border-radius:16px;padding:20px 24px;transition:opacity .5s,transform .5s}
+#card.hide{opacity:0;transform:translateY(20px)}
+#card .act{font-size:10.5px;letter-spacing:.3em;color:var(--gold)}
+#card h2{font-size:22px;margin:8px 0 8px;font-weight:400}
+#card p{font-size:13.5px;line-height:1.75;color:#d6cfc0}
+#card .note{margin-top:10px;font-size:11.5px;line-height:1.6;color:#a39a86;font-style:italic}
+#card .stat{display:flex;gap:18px;margin-top:12px;border-top:1px solid rgba(212,162,78,.2);padding-top:10px;flex-wrap:wrap}
+#card .stat div b{display:block;color:var(--gold);font-size:16px;font-weight:400}
+#card .stat div i{font-style:normal;font-size:10px;letter-spacing:.12em;color:#9d9482;text-transform:uppercase}
+#card.mini p,#card.mini .note,#card.mini .stat{display:none}
+/* hud */
+#hud{position:fixed;right:22px;top:20px;z-index:7;display:flex;flex-direction:column;gap:8px;align-items:flex-end;transition:opacity .4s}
+#hud .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+button{font-family:inherit;cursor:pointer;background:rgba(8,11,17,.55);color:var(--gold);
+  border:1px solid rgba(212,162,78,.45);border-radius:9px;padding:8px 14px;font-size:12px;letter-spacing:.08em;transition:.2s}
+button:hover{background:rgba(212,162,78,.28)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button.on{background:var(--gold);color:#17110a}
+#alt{position:fixed;left:26px;top:22px;z-index:5;pointer-events:none;text-shadow:0 1px 12px #000}
+#alt b{font-size:30px;font-weight:400;color:var(--gold);font-variant-numeric:tabular-nums}
+#alt small{display:block;font-size:10px;letter-spacing:.3em;color:#b3aa97;margin-top:2px}
+#info{margin-top:10px;font-size:11px;line-height:1.7;color:#cfc8b8;letter-spacing:.04em}
+#info b{color:var(--gold);font-weight:400}
+#rail{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;gap:14px;pointer-events:none}
+#rail div{width:8px;height:8px;border-radius:50%;background:#3a352b;transition:.3s}
+#rail div.on{background:var(--gold);box-shadow:0 0 10px var(--gold);transform:scale(1.4)}
+#perf{position:fixed;left:50%;transform:translateX(-50%);top:14px;z-index:5;font-size:10px;letter-spacing:.14em;color:#9a917e;pointer-events:none;font-family:monospace;white-space:nowrap;text-shadow:0 1px 8px #000}
+#perf b{color:#d9cfb8;font-weight:400}
+#attr{position:fixed;left:50%;transform:translateX(-50%);bottom:6px;z-index:5;font-size:9px;color:#7b7364;pointer-events:none;white-space:nowrap;letter-spacing:.06em}
+#lookhint{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);z-index:5;font-size:11px;letter-spacing:.2em;color:#cfc8b8;
+  pointer-events:none;opacity:0;transition:opacity .5s;text-shadow:0 1px 10px #000}
+#lookhint.on{opacity:1}
+/* time */
+#timebox{position:fixed;right:22px;bottom:26px;z-index:7;background:var(--card);border:1px solid rgba(212,162,78,.25);
+  border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:7px;width:218px;transition:opacity .4s}
+#timebox label{font-size:9.5px;letter-spacing:.2em;color:#a39a86}
+#timebox input[type=range]{width:100%;accent-color:var(--gold)}
+#timebox input[type=date]{width:100%;background:rgba(0,0,0,.35);color:var(--gold);border:1px solid rgba(212,162,78,.35);
+  border-radius:7px;padding:4px 6px;font-family:inherit;font-size:11px;color-scheme:dark}
+#timebox .lab{font-size:12px;color:var(--gold);text-align:center;font-variant-numeric:tabular-nums}
+#timebox .brow{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+#timebox .brow button{padding:4px 9px;font-size:10px}
+/* loader */
+#loader{position:fixed;inset:0;background:var(--ink);z-index:20;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;transition:opacity .9s}
+#loader h1{font-size:26px;letter-spacing:.25em;font-weight:400;text-align:center}
+#loader h1 span{color:var(--gold)}
+#loader .bar{width:min(380px,70vw);height:3px;background:#23201a;border-radius:2px;overflow:hidden}
+#loader .bar i{display:block;height:100%;width:0%;background:var(--gold);transition:width .2s}
+#loader p{font-size:11px;letter-spacing:.22em;color:#8a8170;text-align:center;padding:0 16px}
+.lbl{position:fixed;transform:translate(-50%,-130%);font-size:10.5px;padding:3px 9px;border-radius:20px;
+  background:rgba(7,9,13,.85);border:1px solid rgba(212,162,78,.6);color:#ffe9c4;pointer-events:none;white-space:nowrap;z-index:4}
+.dot{position:fixed;width:8px;height:8px;border-radius:50%;background:var(--gold);transform:translate(-50%,-50%);
+  box-shadow:0 0 12px var(--gold);pointer-events:none;z-index:4}
+@media(max-width:700px){#timebox{width:min(218px,60vw);bottom:12px;right:12px;padding:8px 10px}
+  #hud{right:12px;top:12px}#hud .row{max-width:70vw}#perf{display:none}#info{display:none}
+  #card{left:12px;bottom:auto;top:70px;padding:14px 16px;width:calc(100vw - 24px)}#card p{font-size:12.5px}
+  #card .stat,#card .note{display:none}#alt{left:14px;top:14px}#rail{display:none}}
+</style>
+</head>
+<body>
+<div id="gl"></div>
+<div id="vig"></div>
+<div id="journey"></div>
+
+<div id="loader">
+  <h1>ASCENT <span>OF</span> MUTAH</h1>
+  <div class="bar"><i id="lfill"></i></div>
+  <p id="lmsg">DOWNLOADING SRTM ELEVATION</p>
+</div>
+
+<div id="intro">
+  <h1>ASCENT OF MUTAH<span>جبل مؤتة · KARAK · JORDAN</span></h1>
+  <p>A real-time 3D expedition built from SRTM satellite elevation and Esri World Imagery,
+  lit by the true position of the sun, moon and stars over Mu'tah for any date and hour.
+  Scroll to climb from the Dead Sea shore, the lowest exposed land on Earth,
+  to the shrine of Ja'far al-Tayyar, about 1,500 metres higher.</p>
+  <div class="hint">▼ &nbsp;SCROLL TO ASCEND&nbsp; ▼</div>
+</div>
+
+<div id="alt"><b id="altv">−430</b><small>METRES · CLIMBER ELEVATION</small>
+  <div id="info"></div></div>
+
+<div id="card" class="hide">
+  <div class="act" id="cAct"></div>
+  <h2 id="cT"></h2><p id="cB"></p><div class="note" id="cN"></div>
+  <div class="stat" id="cStat"></div>
+</div>
+
+<div id="rail"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+
+<div id="hud">
+  <div class="row">
+    <button id="bExp">▶ EXPERIENCE</button>
+    <button id="bSnd">♪ SCORE</button>
+    <button id="bAmb">🌬 AMBIENCE</button>
+  </div>
+  <div class="row">
+    <button id="bGround">👁 STAND HERE</button>
+    <button id="bOrbit">✋ FREE VIEW</button>
+    <button id="bReset">⌂ RESTART</button>
+  </div>
+</div>
+
+<div id="lookhint">DRAG TO LOOK AROUND · SCROLL TO WALK THE ROUTE</div>
+
+<div id="timebox">
+  <label for="tRange">LOCAL TIME AT MU'TAH · UTC+3</label>
+  <input type="range" id="tRange" min="0" max="24" step="0.01" value="9.5">
+  <div class="lab" id="tLab">09:30</div>
+  <label for="dIn">DATE</label>
+  <input type="date" id="dIn">
+  <div class="brow">
+    <button id="bLive">● LIVE NOW</button>
+    <button id="bCycle">⟳ CYCLE 24H</button>
+    <button id="bFollow">⏱ DAY FOLLOWS CLIMB</button>
+  </div>
+</div>
+
+<div id="perf">DATA <b id="pD">—</b> · RENDER <b id="pQ">—</b> · <b id="pF">—</b> FPS · FRAME-BY-FRAME ENGINE</div>
+<div id="attr">Elevation: Mapzen Terrain Tiles (SRTM) · Imagery © Esri, Maxar, Earthstar Geographics · Weather: Open-Meteo</div>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {Sky} from 'three/addons/objects/Sky.js';
+
+const $=id=>document.getElementById(id);
+const clamp=THREE.MathUtils.clamp, lerp=THREE.MathUtils.lerp;
+const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+const coarse=matchMedia('(pointer:coarse)').matches;
+
+/* ================= RENDERER (created first so tile detail can match the GPU) ================= */
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=.6;
+$('gl').appendChild(renderer.domElement);
+const MAXTEX=renderer.capabilities.maxTextureSize;
+
+/* ================= CONFIG ================= */
+const LONMIN=35.42, LONMAX=35.98, LATMIN=30.85, LATMAX=31.25;
+const LONC=(LONMIN+LONMAX)/2, LATC=(LATMIN+LATMAX)/2;
+const OBS_LAT=31.067, OBS_LON=35.703;       // Maqam at Mazar, used for sun / moon / stars
+const TZ=3;                                  // Jordan: UTC+3 all year
+const KX=954, KY=1113;                       // world units (100 m) per degree at lat 31
+const EXAG=1.5;                              // aerial vertical exaggeration
+const ELEV_Z=12, IMG_Z=MAXTEX>=4096?13:12;
+const DEAD_SEA=-430;
+const W=(LONMAX-LONMIN)*KX, Hh=(LATMAX-LATMIN)*KY;
+
+const merc=lat=>{const r=lat*Math.PI/180;return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2;};
+const lon2x=(lon,z)=>Math.floor((lon+180)/360*2**z);
+const lat2y=(lat,z)=>Math.floor(merc(lat)*2**z);
+const ll2w=(lon,lat)=>[(lon-LONC)*KX,-(lat-LATC)*KY];
+const w2ll=(x,z)=>[LONC+x/KX,LATC-z/KY];
+const wY=h=>h/100*EXAG;                      // metres -> world Y before the world group's own y-scale
+
+/* ================= DATA LOADING ================= */
+const lfill=$('lfill'),lmsg=$('lmsg');
+let loaded=0,total=1;
+const tick=m=>{loaded++;lfill.style.width=Math.min(100,loaded/total*100)+'%';lmsg.textContent=m;};
+const loadImg=url=>new Promise((res,rej)=>{const im=new Image();im.crossOrigin='anonymous';
+  im.onload=()=>res(im);im.onerror=()=>rej(new Error('tile '+url));im.src=url;});
+async function pool(tasks,n){           // run async tasks with limited concurrency
+  let i=0;const run=async()=>{while(i<tasks.length){const k=i++;await tasks[k]();}};
+  await Promise.all(Array.from({length:n},run));
+}
+const eT={x0:lon2x(LONMIN,ELEV_Z),x1:lon2x(LONMAX,ELEV_Z),y0:lat2y(LATMAX,ELEV_Z),y1:lat2y(LATMIN,ELEV_Z)};
+const iT={x0:lon2x(LONMIN,IMG_Z),x1:lon2x(LONMAX,IMG_Z),y0:lat2y(LATMAX,IMG_Z),y1:lat2y(LATMIN,IMG_Z)};
+total=(eT.x1-eT.x0+1)*(eT.y1-eT.y0+1)+(iT.x1-iT.x0+1)*(iT.y1-iT.y0+1);
+
+let heights=null,HW=0,HH=0,imgCanvas=null,dataMode='LIVE SRTM',live=true;
+
+async function fetchElev(){
+  const tw=eT.x1-eT.x0+1,th=eT.y1-eT.y0+1;
+  const cv=document.createElement('canvas');cv.width=tw*256;cv.height=th*256;
+  const cx=cv.getContext('2d',{willReadFrequently:true});
+  const jobs=[];
+  for(let ty=0;ty<th;ty++)for(let tx=0;tx<tw;tx++)
+    jobs.push(()=>loadImg(`https://elevation-tiles-prod.s3.amazonaws.com/terrarium/${ELEV_Z}/${eT.x0+tx}/${eT.y0+ty}.png`)
+      .then(im=>{cx.drawImage(im,tx*256,ty*256);tick('DOWNLOADING SRTM ELEVATION');}));
+  await pool(jobs,8);
+  const d=cx.getImageData(0,0,cv.width,cv.height).data;
+  HW=cv.width;HH=cv.height;heights=new Float32Array(HW*HH);
+  for(let i=0;i<HW*HH;i++)heights[i]=d[i*4]*256+d[i*4+1]+d[i*4+2]/256-32768;
+}
+async function fetchImg(){
+  const tw=iT.x1-iT.x0+1,th=iT.y1-iT.y0+1;
+  const raw=document.createElement('canvas');raw.width=tw*256;raw.height=th*256;
+  const cx=raw.getContext('2d');
+  const jobs=[];
+  for(let ty=0;ty<th;ty++)for(let tx=0;tx<tw;tx++)
+    jobs.push(()=>loadImg(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${IMG_Z}/${iT.y0+ty}/${iT.x0+tx}`)
+      .then(im=>{cx.drawImage(im,tx*256,ty*256);tick('STITCHING ESRI WORLD IMAGERY');}));
+  await pool(jobs,8);
+  const gx=lon=>(lon+180)/360*2**IMG_Z*256, gy=lat=>merc(lat)*2**IMG_Z*256;
+  const ox=gx(LONMIN)-iT.x0*256, oy=gy(LATMAX)-iT.y0*256;
+  const cw=Math.round(gx(LONMAX)-gx(LONMIN)), ch=Math.round(gy(LATMIN)-gy(LATMAX));
+  imgCanvas=document.createElement('canvas');imgCanvas.width=cw;imgCanvas.height=ch;
+  const c2=imgCanvas.getContext('2d');
+  c2.drawImage(raw,Math.round(ox),Math.round(oy),cw,ch,0,0,cw,ch);
+  c2.getImageData(0,0,1,1);                     // throws if the canvas is tainted
+}
+/* Stand-in terrain, used only when the tile servers cannot be reached. */
+function proceduralFallback(){
+  dataMode='OFFLINE STAND-IN';live=false;
+  HW=512;HH=384;heights=new Float32Array(HW*HH);
+  const rnd=(a,b)=>{const x=Math.sin(a*127.1+b*311.7)*43758.5453;return x-Math.floor(x);};
+  const nz=(u,v)=>{const i=Math.floor(u),j=Math.floor(v),f=u-i,g=v-j,s=(a,b,t)=>a+(b-a)*(t*t*(3-2*t));
+    return s(s(rnd(i,j),rnd(i+1,j),f),s(rnd(i,j+1),rnd(i+1,j+1),f),g);};
+  for(let y=0;y<HH;y++)for(let x=0;x<HW;x++){
+    const u=x/HW,v=y/HH;let h=-430;
+    const esc=1/(1+Math.exp(-(u-0.38)/0.05));
+    h+=esc*1450+90*nz(u*6,v*6)+30*nz(u*18,v*18);
+    heights[y*HW+x]=h;
+  }
+}
+function heightAt(lon,lat){
+  let gx,gy;
+  if(live){
+    gx=(lon+180)/360*2**ELEV_Z*256-eT.x0*256;
+    gy=merc(lat)*2**ELEV_Z*256-eT.y0*256;
+  }else{
+    gx=(lon-LONMIN)/(LONMAX-LONMIN)*(HW-1);
+    gy=(LATMAX-lat)/(LATMAX-LATMIN)*(HH-1);
+  }
+  const x0=Math.max(0,Math.min(HW-2,Math.floor(gx))),y0=Math.max(0,Math.min(HH-2,Math.floor(gy)));
+  const fx=clamp(gx-x0,0,1),fy=clamp(gy-y0,0,1);
+  const a=heights[y0*HW+x0],b=heights[y0*HW+x0+1],c=heights[(y0+1)*HW+x0],d=heights[(y0+1)*HW+x0+1];
+  return a*(1-fx)*(1-fy)+b*fx*(1-fy)+c*(1-fx)*fy+d*fx*fy;
+}
+const groundM=(x,z)=>{const [lo,la]=w2ll(x,z);return Math.max(heightAt(lo,la),DEAD_SEA);};
+
+/* ================= ASTRONOMY (low-precision sun and moon, accurate to well under a degree) ================= */
+const RAD=Math.PI/180, DAYMS=864e5, J1970=2440588, J2000=2451545, OBL=RAD*23.4397;
+const toDays=date=>date/DAYMS-0.5+J1970-J2000;
+const rightAsc=(l,b)=>Math.atan2(Math.sin(l)*Math.cos(OBL)-Math.tan(b)*Math.sin(OBL),Math.cos(l));
+const declin=(l,b)=>Math.asin(Math.sin(b)*Math.cos(OBL)+Math.cos(b)*Math.sin(OBL)*Math.sin(l));
+const azim=(H,phi,dec)=>Math.atan2(Math.sin(H),Math.cos(H)*Math.sin(phi)-Math.tan(dec)*Math.cos(phi));
+const altit=(H,phi,dec)=>Math.asin(Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.cos(H));
+const sidereal=(d,lw)=>RAD*(280.16+360.9856235*d)-lw;
+function sunCoords(d){
+  const M=RAD*(357.5291+0.98560028*d);
+  const C=RAD*(1.9148*Math.sin(M)+0.02*Math.sin(2*M)+0.0003*Math.sin(3*M));
+  const L=M+C+RAD*102.9372+Math.PI;
+  return {dec:declin(L,0),ra:rightAsc(L,0)};
+}
+function moonCoords(d){
+  const L=RAD*(218.316+13.176396*d),M=RAD*(134.963+13.064993*d),F=RAD*(93.272+13.229350*d);
+  const l=L+RAD*6.289*Math.sin(M),b=RAD*5.128*Math.sin(F);
+  return {ra:rightAsc(l,b),dec:declin(l,b),dist:385001-20905*Math.cos(M)};
+}
+// azimuth from south, west positive (SunCalc convention) -> world vector (x east, y up, z south)
+const dirFrom=(az,alt)=>new THREE.Vector3(-Math.sin(az)*Math.cos(alt),Math.sin(alt),Math.cos(az)*Math.cos(alt));
+function skyState(date){
+  const lw=RAD*-OBS_LON,phi=RAD*OBS_LAT,d=toDays(date);
+  const s=sunCoords(d),Hs=sidereal(d,lw)-s.ra;
+  const sunAlt=altit(Hs,phi,s.dec),sunAz=azim(Hs,phi,s.dec);
+  const m=moonCoords(d),Hm=sidereal(d,lw)-m.ra;
+  const moonAlt=altit(Hm,phi,m.dec),moonAz=azim(Hm,phi,m.dec);
+  const sd=149598000;
+  const ph=Math.acos(Math.sin(s.dec)*Math.sin(m.dec)+Math.cos(s.dec)*Math.cos(m.dec)*Math.cos(s.ra-m.ra));
+  const inc=Math.atan2(sd*Math.sin(ph),m.dist-sd*Math.cos(ph));
+  const ang=Math.atan2(Math.cos(s.dec)*Math.sin(s.ra-m.ra),Math.sin(s.dec)*Math.cos(m.dec)-Math.cos(s.dec)*Math.sin(m.dec)*Math.cos(s.ra-m.ra));
+  return {sunDir:dirFrom(sunAz,sunAlt),sunAlt,moonDir:dirFrom(moonAz,moonAlt),moonAlt,
+    moonFrac:(1+Math.cos(inc))/2,moonPhase:0.5+0.5*inc*(ang<0?-1:1)/Math.PI,
+    lst:sidereal(d,lw)};
+}
+
+/* ================= TIME MODEL ================= */
+const now0=new Date();
+let dayY=now0.getFullYear(),dayM=now0.getMonth(),dayD=now0.getDate();
+let hour=9.5,cycling=false,liveMode=false;
+const dateAt=h=>new Date(Date.UTC(dayY,dayM,dayD,0,0,0)+(h-TZ)*3600e3);
+// sunrise and sunset (local hours) for the selected day, by scanning the sun's altitude
+function sunTimes(){
+  let rise=6,set=18,prev=skyState(dateAt(0)).sunAlt;
+  for(let h=0.05;h<=24;h+=0.05){
+    const a=skyState(dateAt(h)).sunAlt;
+    if(prev<0&&a>=0)rise=h;
+    if(prev>0&&a<=0)set=h;
+    prev=a;
+  }
+  return {rise,set};
+}
+
+/* ================= SCENE, WORLD GROUP, CAMERA ================= */
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0xb9cfe0,0.0024);
+const cam=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.3,20000);
+const controls=new OrbitControls(cam,renderer.domElement);
+controls.enableDamping=true;controls.maxPolarAngle=Math.PI*.495;
+controls.minDistance=5;controls.maxDistance=900;controls.enabled=false;
+const G=new THREE.Group();scene.add(G);          // terrain, water, lights, vegetation. G.scale.y flattens it for ground view
+const wYs=h=>wY(h)*G.scale.y;                    // metres -> world Y after the group's scale
+
+/* ================= LIGHTS ================= */
+const sun=new THREE.DirectionalLight(0xfff2dd,3);
+sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-0.0004;sun.shadow.normalBias=.05;
+sun.shadow.camera.near=1;sun.shadow.camera.far=4000;
+scene.add(sun,sun.target);
+const moonL=new THREE.DirectionalLight(0xa9bfff,0);scene.add(moonL,moonL.target);
+const hemi=new THREE.HemisphereLight(0xbcd4e6,0x6b5a44,.4);scene.add(hemi);
+function setShadowBox(half){
+  const c=sun.shadow.camera;
+  if(c.right!==half){c.left=-half;c.right=half;c.top=half;c.bottom=-half;c.updateProjectionMatrix();}
+}
+
+/* ================= SKY (physically based scattering) + reflections ================= */
+const sky=new Sky();sky.scale.setScalar(9000);scene.add(sky);
+const su=sky.material.uniforms;
+su.turbidity.value=3.2;su.rayleigh.value=1.5;su.mieCoefficient.value=.004;su.mieDirectionalG.value=.82;
+const envSky=new Sky();envSky.scale.setScalar(1000);
+const envScene=new THREE.Scene();envScene.add(envSky);
+const pmrem=new THREE.PMREMGenerator(renderer);
+let envRT=null,envStamp=-1e9;
+function updateEnv(force){
+  const t=performance.now();
+  if(!force&&t-envStamp<(cycling||cinema?1800:250))return;
+  envStamp=t;
+  for(const k of ['turbidity','rayleigh','mieCoefficient','mieDirectionalG'])envSky.material.uniforms[k].value=su[k].value;
+  envSky.material.uniforms.sunPosition.value.copy(su.sunPosition.value);
+  const old=envRT;envRT=pmrem.fromScene(envScene);scene.environment=envRT.texture;
+  if(old)old.dispose();
+}
+
+/* ================= STARS + MILKY WAY (rotate with local sidereal time) ================= */
+const starTilt=new THREE.Group();starTilt.rotation.x=OBS_LAT*RAD-Math.PI/2;   // local +Y points at the celestial pole
+const starSpin=new THREE.Group();starTilt.add(starSpin);scene.add(starTilt);
+const starMat=new THREE.ShaderMaterial({
+  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+  uniforms:{uTime:{value:0},uOp:{value:0},uPix:{value:1}},
+  vertexShader:`attribute float aSize;attribute vec3 aCol;attribute float aPh;uniform float uTime,uPix;varying vec3 vC;varying float vA;
+    void main(){vC=aCol;vA=.8+.2*sin(uTime*(1.4+aPh*3.)+aPh*40.);
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_PointSize=aSize*uPix;}`,
+  fragmentShader:`uniform float uOp;varying vec3 vC;varying float vA;
+    void main(){float d=length(gl_PointCoord-.5);float a=smoothstep(.5,.0,d);gl_FragColor=vec4(vC*vA,a*uOp*vA);}`
+});
+(function buildStars(){
+  const pos=[],siz=[],col=[],ph=[];
+  const add=(v,s,c)=>{pos.push(v.x*7000,v.y*7000,v.z*7000);siz.push(s);col.push(c.r,c.g,c.b);ph.push(Math.random());};
+  const rv=()=>{const u=Math.random()*2-1,a=Math.random()*Math.PI*2,r=Math.sqrt(1-u*u);return new THREE.Vector3(r*Math.cos(a),u,r*Math.sin(a));};
+  const cc=new THREE.Color();
+  for(let i=0;i<3600;i++){                       // field stars: many faint, a few bright
+    const m=Math.random(),k=Math.random();
+    cc.setHSL(k<.2?.6:k<.8?.12:.06,k<.2?.5:.25,.82);
+    add(rv(),1.1+Math.pow(m,9)*4.2,cc);
+  }
+  const n=new THREE.Vector3(Math.sin(63*RAD),Math.cos(63*RAD),0);   // galactic plane normal (63 deg from the pole)
+  let made=0;
+  while(made<6500){                              // Milky Way: dense faint stars hugging a great circle
+    const v=rv(),d=v.dot(n);
+    if(Math.random()<Math.exp(-(d*d)/(2*.09*.09))){cc.setHSL(.1,.2,.55+Math.random()*.2);add(v,.9+Math.random()*.7,cc);made++;}
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('aSize',new THREE.Float32BufferAttribute(siz,1));
+  g.setAttribute('aCol',new THREE.Float32BufferAttribute(col,3));
+  g.setAttribute('aPh',new THREE.Float32BufferAttribute(ph,1));
+  const pts=new THREE.Points(g,starMat);pts.frustumCulled=false;starSpin.add(pts);
+})();
+
+/* ================= MOON (real phase, drawn per pixel) ================= */
+const hash2=(x,y)=>{const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s);};
+const vnoise=(x,y)=>{const i=Math.floor(x),j=Math.floor(y),f=x-i,g=y-j,u=f*f*(3-2*f),v=g*g*(3-2*g);
+  return lerp(lerp(hash2(i,j),hash2(i+1,j),u),lerp(hash2(i,j+1),hash2(i+1,j+1),u),v);};
+const fbm2=(x,y)=>{let a=.5,s=0;for(let o=0;o<5;o++){s+=a*vnoise(x,y);x=x*2.03+7;y=y*2.03+3;a*=.5;}return s;};
+const MS=192, moonAlb=new Float32Array(MS*MS);
+(function(){
+  const craters=[];for(let i=0;i<70;i++){const a=Math.random()*6.283,r=Math.sqrt(Math.random())*.9;
+    craters.push([Math.cos(a)*r,Math.sin(a)*r,.015+Math.random()*.06]);}
+  for(let y=0;y<MS;y++)for(let x=0;x<MS;x++){
+    const nx=(x/(MS-1))*2-1,ny=(y/(MS-1))*2-1;
+    let b=.78-.34*smooth(.42,.62,fbm2(nx*2.2+9,ny*2.2+4));        // dark maria
+    b+=(fbm2(nx*9,ny*9)-.5)*.16;
+    for(const c of craters){const d=Math.hypot(nx-c[0],ny-c[1]);
+      if(d<c[2])b-=.10*(1-d/c[2]);else if(d<c[2]*1.25)b+=.08*(1-(d-c[2])/(c[2]*.25));}
+    moonAlb[y*MS+x]=clamp(b,0,1);
+  }
+})();
+const moonCv=document.createElement('canvas');moonCv.width=moonCv.height=MS;
+const moonCx=moonCv.getContext('2d'),moonImg=moonCx.createImageData(MS,MS);
+const moonTex=new THREE.CanvasTexture(moonCv);moonTex.colorSpace=THREE.SRGBColorSpace;
+let moonPhaseDrawn=-1;
+function drawMoon(phase){
+  if(Math.abs(phase-moonPhaseDrawn)<.004)return;
+  moonPhaseDrawn=phase;
+  const al=phase*2*Math.PI,Lx=Math.sin(al),Lz=-Math.cos(al),d=moonImg.data;
+  for(let y=0;y<MS;y++)for(let x=0;x<MS;x++){
+    const nx=(x/(MS-1))*2-1,ny=(y/(MS-1))*2-1,r2=nx*nx+ny*ny,i=(y*MS+x)*4;
+    if(r2>=1){d[i+3]=0;continue;}
+    const nz=Math.sqrt(1-r2),lit=Math.max(0,nx*Lx+nz*Lz);
+    const v=moonAlb[y*MS+x]*(.035+Math.pow(lit,.55)*.965)*255;
+    d[i]=v*1.0;d[i+1]=v*.97;d[i+2]=v*.9;
+    d[i+3]=255*smooth(1,.965,Math.sqrt(r2));
+  }
+  moonCx.putImageData(moonImg,0,0);moonTex.needsUpdate=true;
+}
+const moonSpr=new THREE.Sprite(new THREE.SpriteMaterial({map:moonTex,transparent:true,depthWrite:false,fog:false,toneMapped:false}));
+moonSpr.scale.set(190,190,1);scene.add(moonSpr);
+function radialTex(inner,outer){
+  const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');
+  const g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,inner);g.addColorStop(.25,outer);g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g;x.fillRect(0,0,128,128);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+const moonGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:radialTex('rgba(200,215,255,.55)','rgba(150,175,255,.12)'),
+  transparent:true,depthWrite:false,fog:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+moonGlow.scale.set(1100,1100,1);scene.add(moonGlow);
+
+/* ================= CLOUDS ================= */
+const WX={cloud:.3,wind:9,dir:270,temp:null,hum:null,live:false};
+const cloudMat=new THREE.ShaderMaterial({
+  transparent:true,depthWrite:false,side:THREE.DoubleSide,
+  uniforms:{uTime:{value:0},uCover:{value:.3},uSun:{value:new THREE.Vector3(0,1,0)},uCam:{value:new THREE.Vector3()},
+    uWind:{value:new THREE.Vector2(.004,.001)},uLit:{value:new THREE.Color(1,1,1)},uShade:{value:new THREE.Color(.5,.55,.65)},uQ:{value:6}},
+  vertexShader:`varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
+  fragmentShader:`uniform float uTime,uCover,uQ;uniform vec3 uSun,uCam,uLit,uShade;uniform vec2 uWind;varying vec3 vW;
+    float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+    float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+      return mix(mix(h(i),h(i+vec2(1.,0.)),f.x),mix(h(i+vec2(0.,1.)),h(i+vec2(1.,1.)),f.x),f.y);}
+    float fbm(vec2 p){float a=.5,s=0.;for(int i=0;i<6;i++){if(float(i)>=uQ)break;s+=a*n(p);p=p*2.03+vec2(17.,9.);a*=.5;}return s;}
+    void main(){
+      float dist=length(vW.xz-uCam.xz);
+      vec2 uv=vW.xz*.0017+uWind*uTime;
+      float d=fbm(uv);
+      float t=1.-uCover;
+      float dens=smoothstep(t*.78,t*.78+.30,d);
+      float d2=fbm(uv+uSun.xz*.05);
+      float lit=clamp(1.-(d2-d)*3.2,0.,1.);
+      vec3 col=mix(uShade,uLit,lit);
+      float fade=(1.-smoothstep(2600.,7200.,dist))*smoothstep(15.,160.,dist);
+      gl_FragColor=vec4(col,dens*fade*.92);
+    }`
+});
+const clouds=new THREE.Mesh(new THREE.PlaneGeometry(14400,14400),cloudMat);
+clouds.rotation.x=-Math.PI/2;clouds.position.y=130;clouds.renderOrder=2;scene.add(clouds);
+
+/* ================= TERRAIN, WATER, NIGHT LIGHTS, VEGETATION, CLIMBER ================= */
+let terrain,terrainMat,water,waterNormal,climber,beacon,lightsMat,shrubs,shrineLight;
+const SHRINE_W=ll2w(35.703,31.067);
+
+function buildTerrain(){
+  const gw=coarse?512:768,gh=coarse?384:576;
+  const geo=new THREE.PlaneGeometry(W,Hh,gw-1,gh-1);geo.rotateX(-Math.PI/2);
+  const pos=geo.attributes.position;
+  for(let iy=0;iy<gh;iy++)for(let ix=0;ix<gw;ix++){
+    const i=iy*gw+ix;
+    const lon=LONMIN+(ix/(gw-1))*(LONMAX-LONMIN),lat=LATMAX-(iy/(gh-1))*(LATMAX-LATMIN);
+    const [x,z]=ll2w(lon,lat);
+    pos.setXYZ(i,x,wY(heightAt(lon,lat)),z);
+  }
+  geo.computeVertexNormals();
+  terrainMat=new THREE.MeshStandardMaterial({roughness:.95,metalness:0,envMapIntensity:.55});
+  if(imgCanvas){
+    const tex=new THREE.CanvasTexture(imgCanvas);tex.colorSpace=THREE.SRGBColorSpace;
+    tex.anisotropy=renderer.capabilities.getMaxAnisotropy();terrainMat.map=tex;
+  }else{
+    terrainMat.vertexColors=true;
+    const cols=[],c1=new THREE.Color(0xc9b58a),c2=new THREE.Color(0x8a6f4d),c3=new THREE.Color(0xa08763),cc=new THREE.Color();
+    for(let i=0;i<pos.count;i++){const h=pos.getY(i)/EXAG*100+430;
+      cc.copy(c1).lerp(c2,clamp(h/900,0,1)).lerp(c3,clamp((h-700)/700,0,1));cols.push(cc.r,cc.g,cc.b);}
+    geo.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
+  }
+  // micro-detail: grit in the colour and a fine bump, fading out with distance so it never shimmers from the air
+  terrainMat.onBeforeCompile=sh=>{
+    sh.vertexShader=sh.vertexShader
+      .replace('#include <common>','#include <common>\nvarying vec3 vWP;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=position;');
+    sh.fragmentShader=sh.fragmentShader
+      .replace('#include <common>',`#include <common>
+        varying vec3 vWP;
+        float dh(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+        float dn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+          return mix(mix(dh(i),dh(i+vec2(1.,0.)),f.x),mix(dh(i+vec2(0.,1.)),dh(i+vec2(1.,1.)),f.x),f.y);}
+        float dfb(vec2 p){return .5*dn(p)+.25*dn(p*2.1+3.)+.125*dn(p*4.3+7.)+.0625*dn(p*8.9+1.);}`)
+      .replace('#include <map_fragment>',`#include <map_fragment>
+        float dFade=1.-smoothstep(20.,110.,length(vViewPosition));
+        float dtl=dfb(vWP.xz*60.)*.55+dfb(vWP.xz*9.)*.45;
+        diffuseColor.rgb*=1.+(dtl-.5)*.9*dFade;`)
+      .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+        {float dF=1.-smoothstep(8.,60.,length(vViewPosition));
+         vec2 q=vWP.xz*150.;float c0=dfb(q);
+         vec2 gr=vec2(dfb(q+vec2(.4,0.))-c0,dfb(q+vec2(0.,.4))-c0);
+         normal=normalize(normal+(viewMatrix*vec4(-gr.x*1.6*dF,0.,-gr.y*1.6*dF,0.)).xyz);}`);
+  };
+  terrain=new THREE.Mesh(geo,terrainMat);terrain.receiveShadow=true;terrain.castShadow=true;
+  G.add(terrain);
+
+  // Dead Sea: calm, reflective, with a slow ripple normal map
+  const nc=document.createElement('canvas');nc.width=nc.height=256;const nx=nc.getContext('2d'),nd=nx.createImageData(256,256);
+  const hgt=(x,y)=>Math.sin(x*.19)*.5+Math.sin(y*.23+x*.07)*.5+Math.sin((x+y)*.41)*.25+Math.sin((x-y)*.53)*.2;
+  for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+    const dx=hgt(x+1,y)-hgt(x-1,y),dy=hgt(x,y+1)-hgt(x,y-1),i=(y*256+x)*4;
+    nd.data[i]=128+dx*40;nd.data[i+1]=128+dy*40;nd.data[i+2]=255;nd.data[i+3]=255;}
+  nx.putImageData(nd,0,0);
+  waterNormal=new THREE.CanvasTexture(nc);waterNormal.wrapS=waterNormal.wrapT=THREE.RepeatWrapping;waterNormal.repeat.set(70,70);
+  water=new THREE.Mesh(new THREE.PlaneGeometry(W*1.6,Hh*1.6),
+    new THREE.MeshStandardMaterial({color:0x2c7c93,roughness:.06,metalness:.05,normalMap:waterNormal,
+      normalScale:new THREE.Vector2(.22,.22),envMapIntensity:1.5,transparent:true,opacity:.94}));
+  water.rotation.x=-Math.PI/2;water.position.y=wY(DEAD_SEA)+.2;water.receiveShadow=true;G.add(water);
+
+  // climber marker + light pillar (aerial views only)
+  climber=new THREE.Mesh(new THREE.ConeGeometry(.9,2.4,12),new THREE.MeshBasicMaterial({color:0xffc861,fog:false}));
+  beacon=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,60,8),
+    new THREE.MeshBasicMaterial({color:0xffc861,transparent:true,opacity:.35,fog:false}));
+  G.add(climber,beacon);
+
+  buildLights();buildShrubs();
+}
+
+/* Night lights. Positions are approximate clusters around Karak, Mu'tah and Mazar plus lit roads between them. */
+function buildLights(){
+  const pos=[],siz=[],col=[],ph=[];
+  const gauss=()=>{let s=0;for(let i=0;i<4;i++)s+=Math.random();return (s-2)/.58;};
+  const place=(lon,lat,s,c)=>{const [x,z]=ll2w(lon,lat),h=groundM(x,z);
+    if(h<-400)return;pos.push(x,wY(h)+.12,z);siz.push(s);col.push(c.r,c.g,c.b);ph.push(Math.random());};
+  const warm=new THREE.Color(1,.78,.45),white=new THREE.Color(1,.93,.8);
+  const town=(lon,lat,n,sigmaM,sizeBase)=>{
+    for(let i=0;i<n;i++){const dx=gauss()*sigmaM/(KX*100),dy=gauss()*sigmaM/(KY*100);
+      place(lon+dx,lat+dy,sizeBase*(.6+Math.random()*.9),Math.random()<.35?white:warm);}
+  };
+  town(35.7044,31.1803,900,1300,2.6);   // Karak
+  town(35.695,31.093,520,900,2.4);      // Mu'tah
+  town(35.703,31.067,320,650,2.3);      // Mazar
+  const road=(a,b)=>{const len=Math.hypot((b[0]-a[0])*KX*100,(b[1]-a[1])*KY*100),n=Math.floor(len/140);
+    for(let i=0;i<=n;i++){const t=i/n;place(a[0]+(b[0]-a[0])*t+(Math.random()-.5)*.0004,a[1]+(b[1]-a[1])*t+(Math.random()-.5)*.0004,2.0,white);}};
+  road([35.7044,31.1803],[35.695,31.093]);road([35.695,31.093],[35.703,31.067]);
+  // the shrine itself: brighter, cooler white
+  place(35.703,31.067,13,new THREE.Color(.9,1,.92));place(35.7032,31.0672,8,warm);place(35.7028,31.0668,8,warm);
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('aSize',new THREE.Float32BufferAttribute(siz,1));
+  g.setAttribute('aCol',new THREE.Float32BufferAttribute(col,3));
+  g.setAttribute('aPh',new THREE.Float32BufferAttribute(ph,1));
+  lightsMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    uniforms:{uTime:{value:0},uOp:{value:0},uPix:{value:1}},
+    vertexShader:`attribute float aSize;attribute vec3 aCol;attribute float aPh;uniform float uTime,uPix;varying vec3 vC;varying float vF;
+      void main(){vC=aCol;vF=.86+.14*sin(uTime*(2.+aPh*5.)+aPh*60.);
+        vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;
+        gl_PointSize=clamp(aSize*uPix*(260./max(-mv.z,1.)),1.,aSize*uPix*5.);}`,
+    fragmentShader:`uniform float uOp;varying vec3 vC;varying float vF;
+      void main(){float d=length(gl_PointCoord-.5);float a=smoothstep(.5,.0,d);a*=a;gl_FragColor=vec4(vC*vF,a*uOp);}`});
+  const pts=new THREE.Points(g,lightsMat);pts.frustumCulled=false;G.add(pts);
+  shrineLight=new THREE.PointLight(0xffe2b0,0,1.2,2);
+  shrineLight.position.set(SHRINE_W[0],wY(groundM(SHRINE_W[0],SHRINE_W[1]))+.06,SHRINE_W[1]);
+  G.add(shrineLight);
+}
+
+/* Ground scrub around the walker, regenerated from a stable hash so it never pops as you move. */
+const SHRUB_MAX=3600,SHRUB_CELL=.06,SHRUB_R=30;       // 6 m cells, +/-180 m
+let shrubAt=[1e9,1e9];
+function buildShrubs(){
+  const geo=new THREE.IcosahedronGeometry(.011,0);geo.scale(1,.7,1);
+  shrubs=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,flatShading:true}),SHRUB_MAX);
+  shrubs.castShadow=true;shrubs.receiveShadow=true;shrubs.frustumCulled=false;shrubs.visible=false;shrubs.count=0;
+  shrubs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  const c=new THREE.Color();for(let i=0;i<SHRUB_MAX;i++)shrubs.setColorAt(i,c.setRGB(1,1,1));
+  G.add(shrubs);
+}
+const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(),_p=new THREE.Vector3(),_c=new THREE.Color(),_e=new THREE.Euler();
+function refreshShrubs(cx,cz){
+  if(Math.hypot(cx-shrubAt[0],cz-shrubAt[1])<.25&&shrubs.count>0)return;
+  shrubAt=[cx,cz];
+  const i0=Math.round(cx/SHRUB_CELL),j0=Math.round(cz/SHRUB_CELL);
+  let n=0;
+  for(let dj=-SHRUB_R;dj<=SHRUB_R&&n<SHRUB_MAX;dj++)for(let di=-SHRUB_R;di<=SHRUB_R&&n<SHRUB_MAX;di++){
+    const i=i0+di,j=j0+dj,r1=hash2(i*1.37,j*2.11),r2=hash2(i*3.7+5,j*1.9+2);
+    const x=(i+hash2(i,j*.7)-.5)*SHRUB_CELL,z=(j+hash2(i*.9,j)-.5)*SHRUB_CELL;
+    if(Math.hypot(x-cx,z-cz)>SHRUB_R*SHRUB_CELL)continue;
+    const h=groundM(x,z);
+    if(h<-415)continue;
+    const dens=h<200?.16:h<700?.34:.5;
+    if(r1>dens)continue;
+    const sl=Math.abs(groundM(x+.06,z)-h)+Math.abs(groundM(x,z+.06)-h);
+    if(sl>45)continue;                                   // too steep for scrub
+    const sc=.5+r2*1.2;
+    _p.set(x,wY(h)+.004*sc,z);_s.set(sc,sc*(.7+r2*.6),sc);_q.setFromEuler(_e.set(0,r1*6.28,0));
+    _m.compose(_p,_q,_s);shrubs.setMatrixAt(n,_m);
+    const t=hash2(i+9,j+4);_c.setHSL(.16+t*.08,.28+t*.15,.22+t*.12);shrubs.setColorAt(n,_c);
+    n++;
+  }
+  shrubs.count=n;shrubs.instanceMatrix.needsUpdate=true;if(shrubs.instanceColor)shrubs.instanceColor.needsUpdate=true;
+}
+
+/* ================= SKY STATE -> LIGHTING (runs whenever the clock changes) ================= */
+let SK=null,nightF=0,dayF=1,infoStamp='';
+const FOG_DAY=new THREE.Color(0xb9cfe0),FOG_NIGHT=new THREE.Color(0x070a12),FOG_TW=new THREE.Color(0xe39a6a),FOG_DUSK=new THREE.Color(0x2a2a48);
+const SUN_LOW=new THREE.Color(1,.6,.3),SUN_HIGH=new THREE.Color(1,.96,.88);
+const HEMI_SKY_D=new THREE.Color(0xbcd4e6),HEMI_SKY_N=new THREE.Color(0x1a2744),HEMI_GR_D=new THREE.Color(0x6b5a44),HEMI_GR_N=new THREE.Color(0x0a0c12);
+const CL_DAY=new THREE.Color(1,.98,.94),CL_TW=new THREE.Color(1,.55,.3),CL_NIGHT=new THREE.Color(.035,.045,.08);
+const phaseName=p=>p<.03||p>.97?'new':p<.22?'waxing crescent':p<.28?'first quarter':p<.47?'waxing gibbous':p<.53?'full':p<.72?'waning gibbous':p<.78?'last quarter':'waning crescent';
+function applyTime(){
+  const S=skyState(dateAt(hour));SK=S;
+  const e=S.sunAlt/RAD;
+  dayF=smooth(-4,10,e);nightF=1-smooth(-9,0,e);
+  const moonUp=smooth(-.03,.25,S.moonAlt),moonLight=S.moonFrac*moonUp;
+  // sky + sun
+  su.sunPosition.value.copy(S.sunDir);
+  su.rayleigh.value=1.5+(1-smooth(0,20,e))*1.3;
+  sun.color.copy(SUN_LOW).lerp(SUN_HIGH,smooth(1,22,e));
+  sun.intensity=3.2*smooth(-2,7,e);
+  moonL.intensity=1.15*moonLight*nightF;
+  hemi.color.copy(HEMI_SKY_N).lerp(HEMI_SKY_D,dayF);hemi.groundColor.copy(HEMI_GR_N).lerp(HEMI_GR_D,dayF);
+  hemi.intensity=.1+.33*dayF;
+  renderer.toneMappingExposure=lerp(1.3,.55,dayF);
+  // haze
+  const tw=Math.exp(-Math.pow((e-.5)/6,2));
+  scene.fog.color.copy(FOG_NIGHT).lerp(FOG_DAY,dayF).lerp(e<0?FOG_DUSK:FOG_TW,tw*.55);
+  scene.fog.density=.0024*(1+WX.cloud*.4);
+  // stars and moon
+  starSpin.rotation.y=-S.lst;
+  starMat.uniforms.uOp.value=smooth(0,-14,e)*(1-.5*moonLight);
+  drawMoon(S.moonPhase);
+  moonSpr.visible=S.moonAlt>-.03;moonGlow.visible=moonSpr.visible;
+  moonSpr.material.opacity=(1-.78*dayF)*smooth(-.03,.04,S.moonAlt);
+  const low=1-smooth(0,.35,S.moonAlt);moonSpr.material.color.setRGB(1,1-.22*low,1-.5*low);
+  moonGlow.material.opacity=.9*S.moonFrac*(1-dayF)*smooth(-.03,.1,S.moonAlt);
+  // clouds
+  const lit=cloudMat.uniforms.uLit.value,sh=cloudMat.uniforms.uShade.value;
+  lit.copy(CL_NIGHT).lerp(CL_DAY,dayF).lerp(CL_TW,Math.exp(-Math.pow((e-3)/9,2))*smooth(-5,0,e)*.85);
+  lit.r+=.05*moonLight;lit.g+=.06*moonLight;lit.b+=.09*moonLight;
+  sh.copy(lit).multiplyScalar(.5);sh.r+=.05*dayF;sh.g+=.06*dayF;sh.b+=.1*dayF;
+  cloudMat.uniforms.uCover.value=WX.cloud;
+  cloudMat.uniforms.uSun.value.copy(dayF>.05?S.sunDir:S.moonDir);
+  const wa=(WX.dir+180)*RAD,ws=.0006+WX.wind*.0002/10;
+  cloudMat.uniforms.uWind.value.set(Math.sin(wa)*ws,-Math.cos(wa)*ws);
+  // night lights, vignette
+  if(lightsMat)lightsMat.uniforms.uOp.value=smooth(2,-6,e);
+  if(shrineLight)shrineLight.intensity=.15*smooth(2,-6,e);
+  $('vig').style.opacity=(.45+.3*nightF).toFixed(2);
+  if(water)water.material.color.setHex(0x2c7c93).multiplyScalar(.25+.75*Math.max(dayF,moonLight*.35));
+  // readouts
+  const hh=Math.floor(hour),mm=Math.floor((hour-hh)*60);
+  $('tLab').textContent=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0')+(liveMode?'  · LIVE':'');
+  $('tRange').value=hour;
+  const iso=dayY+'-'+String(dayM+1).padStart(2,'0')+'-'+String(dayD).padStart(2,'0');
+  if($('dIn').value!==iso)$('dIn').value=iso;
+  const info=`SUN <b>${e.toFixed(0)}°</b> · MOON <b>${Math.round(S.moonFrac*100)}%</b> ${phaseName(S.moonPhase)}${S.moonAlt<0?' (below horizon)':''}<br>`
+    +`${WX.temp!=null?`<b>${Math.round(WX.temp)}°C</b> · `:''}CLOUD <b>${Math.round(WX.cloud*100)}%</b> · WIND <b>${Math.round(WX.wind)}</b> km/h <i>${WX.live?'live weather':'typical weather'}</i>`;
+  if(info!==infoStamp){infoStamp=info;$('info').innerHTML=info;}
+  updateEnv(false);
+}
+
+/* ================= CLIMBER ROUTE + CAMERA RIG (scroll driven) ================= */
+// The climber walks a straight line from the Dead Sea shore to the Maqam at Mazar (Mu'tah).
+const ROUTE=[[0,35.500,31.065],[.25,35.550,31.070],[.50,35.620,31.075],[.75,35.675,31.070],[1,35.703,31.067]];
+// aerial rig keyframes: [t, distance (world units), height above ground (m), heading deg (camera sits on this side of the climber)]
+const RIG=[[0,45,1200,90],[.15,70,900,200],[.38,80,800,270],[.60,70,900,180],[.80,55,700,330],[1,30,500,225]];
+const sm=f=>f*f*(3-2*f);
+function seg(arr,t){let i=0;while(i<arr.length-2&&t>arr[i+1][0])i++;
+  const A=arr[i],B=arr[i+1];return [A,B,clamp((t-A[0])/(B[0]-A[0]),0,1)];}
+
+let groundMode=false,freeMode=false,userYaw=0,userPitch=0,focusH=DEAD_SEA,focusX=0,focusZ=0;
+const GROUND_EYE=1.7;
+const aerialPos=new THREE.Vector3(),aerialTgt=new THREE.Vector3(),groundPos=new THREE.Vector3(),groundTgt=new THREE.Vector3();
+const gBlend=()=>clamp((1-G.scale.y)/(1-1/EXAG),0,1);
+
+function camAt(t){
+  if(!climber)return;
+  const [A,B,f0]=seg(ROUTE,t);
+  const lon=A[1]+(B[1]-A[1])*f0,lat=A[2]+(B[2]-A[2])*f0;
+  const [x,z]=ll2w(lon,lat);focusX=x;focusZ=z;
+  focusH=Math.max(heightAt(lon,lat),DEAD_SEA);
+  // climber marker lives inside G, so it uses the unscaled wY
+  const cy=wY(focusH)+1.2;
+  climber.position.set(x,cy+1.2,z);beacon.position.set(x,cy+30,z);
+  // aerial camera
+  const [R,S,f1]=seg(RIG,t),f=sm(f1),L=(a,b)=>a+(b-a)*f;
+  const dist=L(R[1],S[1]),hm=L(R[2],S[2]),hd=L(R[3],S[3])*RAD;
+  const cx=x+Math.sin(hd)*dist,cz=z-Math.cos(hd)*dist;
+  const ground=groundM(cx,cz);
+  aerialPos.set(cx,wYs(Math.max(ground+hm,focusH+250)),cz);
+  aerialTgt.set(x,wYs(focusH)+1.2*G.scale.y,z);
+  // ground camera: eye height, looking along the route plus whatever the viewer dragged
+  const dx=(B[1]-A[1])*KX,dz=-(B[2]-A[2])*KY,head=Math.atan2(dx,-dz)+userYaw;
+  const cp=Math.cos(userPitch);
+  groundPos.set(x,wYs(focusH+GROUND_EYE),z);
+  groundTgt.set(x+Math.sin(head)*cp*10,groundPos.y+Math.sin(userPitch)*10,z-Math.cos(head)*cp*10);
+}
+function placeCamera(timeSec){
+  const gb=sm(gBlend());
+  cam.position.lerpVectors(aerialPos,groundPos,gb);
+  const tgt=new THREE.Vector3().lerpVectors(aerialTgt,groundTgt,gb);
+  if(gb>.6){                                    // a living eye: breathing and wind sway
+    const k=(gb-.6)/.4,w=.0004+WX.wind*.00004;
+    cam.position.y+=Math.sin(timeSec*1.7)*.0007*k;
+    tgt.x+=Math.sin(timeSec*.9)*w*60*k;tgt.y+=Math.sin(timeSec*1.3+1)*w*30*k;
+  }
+  controls.target.copy(aerialTgt);
+  cam.lookAt(tgt);
+  const nr=lerp(.3,.02,gb);if(Math.abs(cam.near-nr)>1e-4){cam.near=nr;cam.updateProjectionMatrix();}
+}
+
+/* ================= STORY: 6 ACTS ================= */
+// Documented history only. No ascent, permit, cost or fatality records exist for Mu'tah as a climb.
+const ACTS=[
+ {t:"The Rift",s:"ACT I · THE DEAD SEA SHORE",
+  b:"The climb starts at the Dead Sea, about 430 metres below sea level, the lowest exposed land on Earth. The lake sits in the Jordan Rift, where the Arabian and African plates slide past each other. East of it the plateau of ancient Moab rises roughly 1,500 metres in a single escarpment.",
+  n:"Elevation is read live from SRTM radar data. The Dead Sea surface keeps falling, so today's shoreline is lower than any textbook figure.",
+  st:[["−430 m","Dead Sea level"],["~1,500 m","rise to the plateau"],["Jordan Rift","plate boundary"]]},
+ {t:"The Ascent",s:"ACT II · THE ESCARPMENT · THE KING'S HIGHWAY",
+  b:"The King's Highway runs along the top of this plateau and has carried traffic for over three thousand years. It links the Moabite, Edomite and Nabataean lands, and later Roman and Islamic roads. The Mesha Stele, a Moabite royal inscription of about 840 BCE, was found at Dhiban, some 60 km north of here, in 1868.",
+  n:"The Mesha Stele names Moab's king and his wars with Israel. It is now in the Louvre.",
+  st:[["3,000+ yrs","the King's Highway"],["c. 840 BCE","Mesha Stele"],["1868","found at Dhiban"]]},
+ {t:"The Battle of Mu'tah",s:"ACT III · 629 CE · THE FIRST MARTYRS",
+  b:"In 629 CE (traditionally September, 8 AH) a Muslim force of about 3,000 met a much larger Byzantine and Arab-allied army near Mu'tah. Zayd ibn Harithah fell first, then Ja'far ibn Abi Talib, then Abdullah ibn Rawahah. The army chose Khalid ibn al-Walid, who organised a withdrawal. Muslim tradition records him as Sayf Allah, the Sword of God.",
+  n:"Early sources give enemy numbers from tens of thousands to 200,000; modern historians put them far lower. Accounts of how many Muslims died range from about 8 to 12.",
+  st:[["629 CE","date (traditional)"],["~3,000","Muslim force"],["3","commanders killed"]]},
+ {t:"The Crusader Shadow",s:"ACT IV · 1142–1263 · THE FORTRESS OF KARAK",
+  b:"About 12 km north, Pagan the Butler began Karak castle in 1142 to control the King's Highway and the Dead Sea road. Renaud de Châtillon held it from 1176 and raided caravans. Saladin besieged Karak in 1183 and took it in 1188. The Mamluk sultan Baybars brought it under his rule in 1263.",
+  n:"The castle stands on a spur above the town of Karak, a 15-minute drive from the Mu'tah shrine today.",
+  st:[["1142","castle begun"],["1188","taken by Saladin"],["1263","Mamluk rule"]]},
+ {t:"The Shrine",s:"ACT V · THE MAQAM · 1,400 YEARS OF REMEMBRANCE",
+  b:"Muslim tradition places the graves of Zayd, Ja'far and Abdullah ibn Rawahah at Mazar, the village beside Mu'tah, and pilgrims have visited for centuries. The shrine has been rebuilt and enlarged many times. Mu'tah is also home to Mu'tah University, founded in 1981 as Jordan's military-linked university.",
+  n:"Nobody records a first ascent of this ridge: it is a village and a pilgrimage route, not a climbing objective.",
+  st:[["~1,100 m","plateau elevation"],["3","tombs by tradition"],["1981","Mu'tah University"]]},
+ {t:"The Summit",s:"ACT VI · PANORAMA · THE LEDGER OF THE MOUNTAIN",
+  b:"From the ridge the Dead Sea lies far below to the west and the plateau of Moab runs east to the desert. This ground has seen a Moabite kingdom, a Byzantine frontier, one early Islamic battle, a Crusader march and a modern Jordan, independent since 1946.",
+  n:"This page holds no climbing statistics because none exist for Mu'tah. Every figure above is documented history.",
+  st:[["1946","Jordan independent"],["629 CE","the battle"],["−430 → 1,100 m","your climb"]]},
+];
+const BOUNDS=[0,.15,.38,.60,.80,1.01];
+
+/* ================= SCROLL, ACT CARD, DAY-FOLLOWS-CLIMB ================= */
+let scrollT=0,followDay=false;
+let stCache={key:'',v:{rise:6,set:18}};
+const sunTimesCached=()=>{const k=dayY+'-'+dayM+'-'+dayD;if(stCache.key!==k)stCache={key:k,v:sunTimes()};return stCache.v;};
+const FOLLOW=[[0,r=>r.rise-.55],[.15,r=>r.rise+.9],[.38,r=>(r.rise+r.set)/2-.3],[.60,r=>r.set-2.4],[.80,r=>r.set-.15],[.92,r=>r.set+.75],[1,r=>r.set+3.2]];
+function followHour(t){
+  const r=sunTimesCached();let i=0;while(i<FOLLOW.length-2&&t>FOLLOW[i+1][0])i++;
+  const A=FOLLOW[i],B=FOLLOW[i+1],f=clamp((t-A[0])/(B[0]-A[0]),0,1);
+  return lerp(A[1](r),B[1](r),f);
+}
+function readScroll(){
+  if(!SK)return;
+  const max=Math.max(1,document.documentElement.scrollHeight-innerHeight);
+  scrollT=clamp((scrollY||0)/max,0,1);
+  if(followDay){const h=followHour(scrollT);if(Math.abs(h-hour)>.002){hour=h;liveMode=false;applyTime();}}
+  if(!freeMode)camAt(scrollT);
+}
+addEventListener('scroll',readScroll,{passive:true});
+
+let actIdx=-1;
+function updAct(){
+  let a=0;for(let i=0;i<6;i++)if(scrollT>=BOUNDS[i]&&scrollT<BOUNDS[i+1])a=i;
+  if(a!==actIdx){actIdx=a;const A=ACTS[a];
+    $('cAct').textContent=A.s;$('cT').textContent=A.t;$('cB').textContent=A.b;$('cN').textContent=A.n;
+    $('cStat').innerHTML=A.st.map(s=>`<div><b>${s[0]}</b><i>${s[1]}</i></div>`).join('');
+    document.querySelectorAll('#rail div').forEach((d,i)=>d.classList.toggle('on',i===a));
+    audioAct(a);
+  }
+  $('intro').style.opacity=scrollT<0.02?1:0;
+  const card=$('card');card.classList.toggle('hide',scrollT<0.03);
+}
+
+/* ================= LABELS ================= */
+const MARKS=[
+ {n:"Maqam Ja'far al-Tayyar · مقام جعفر",lon:35.703,lat:31.067},
+ {n:"Karak Castle · قلعة الكرك",lon:35.704,lat:31.180},
+ {n:"Dead Sea · البحر الميت",lon:35.455,lat:31.04},
+ {n:"Mu'tah · مؤتة",lon:35.695,lat:31.093},
+];
+const mlabels=MARKS.map(m=>{
+  const el=document.createElement('div');el.className='lbl';el.textContent=m.n;document.body.appendChild(el);
+  const dot=document.createElement('div');dot.className='dot';document.body.appendChild(dot);
+  return {...m,el,dot};
+});
+const pv=new THREE.Vector3();
+function updLabels(){
+  const show=!groundMode||gBlend()<.5;
+  for(const m of mlabels){
+    const [x,z]=ll2w(m.lon,m.lat);
+    pv.set(x,wYs(Math.max(heightAt(m.lon,m.lat),DEAD_SEA))+2*G.scale.y,z).project(cam);
+    const vis=show&&pv.z<1&&pv.x>-.95&&pv.x<.95&&pv.y>-.95&&pv.y<.95;
+    m.el.style.display=vis?'block':'none';m.dot.style.display=vis?'block':'none';
+    if(vis){const sx=(pv.x*.5+.5)*innerWidth,sy=(-pv.y*.5+.5)*innerHeight;
+      m.el.style.left=sx+'px';m.el.style.top=(sy-12)+'px';m.dot.style.left=sx+'px';m.dot.style.top=sy+'px';}
+  }
+}
+
+/* ================= GROUND VIEW (stand where the climber stands, look around) ================= */
+function setGround(on){
+  groundMode=on;$('bGround').classList.toggle('on',on);
+  $('bGround').textContent=on?'↥ BACK TO THE AIR':'👁 STAND HERE';
+  $('lookhint').classList.toggle('on',on);
+  renderer.domElement.style.touchAction=on?'pan-y':'';
+  if(on&&freeMode)$('bOrbit').click();
+  if(!on){userYaw=0;userPitch=0;}
+}
+let dragging=false,lx=0,ly=0;
+renderer.domElement.addEventListener('pointerdown',e=>{if(!groundMode)return;dragging=true;lx=e.clientX;ly=e.clientY;});
+addEventListener('pointerup',()=>{dragging=false;});
+addEventListener('pointermove',e=>{
+  if(!dragging||!groundMode)return;
+  userYaw-=(e.clientX-lx)*.0035;userPitch=clamp(userPitch+(e.clientY-ly)*.0035,-1.2,1.2);
+  lx=e.clientX;ly=e.clientY;camAt(scrollT);
+});
+
+/* ================= FRAME-BY-FRAME PERFORMANCE ENGINE =================
+   Every frame: smooth the measured frame time, then nudge render scale up or down.
+   Pixel ratio is only re-applied once it has drifted enough to justify a canvas resize.
+   Below 0.62 shadows and the finer cloud octaves switch off; below 0.5 scrub is hidden.      */
+const TARGET_MS=17.5,MAX_PR=Math.min(devicePixelRatio||1,2);
+let rScale=.8,appliedPR=0,ema=16.7,lastT=0,frameN=0;
+function perfFrame(now){
+  const dt=lastT?Math.min(now-lastT,100):16.7;lastT=now;frameN++;
+  ema+=(dt-ema)*.08;
+  if(frameN>20){
+    if(ema>TARGET_MS)rScale-=Math.min(.02,.0012*(ema-TARGET_MS));
+    else if(ema<TARGET_MS-3)rScale+=.0006;
+    rScale=clamp(rScale,.4,1);
+  }
+  const pr=Math.max(.5,MAX_PR*rScale);
+  if(Math.abs(pr-appliedPR)>.05){appliedPR=pr;renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight);
+    starMat.uniforms.uPix.value=pr;if(lightsMat)lightsMat.uniforms.uPix.value=pr;}
+  const sh=rScale>.62;if(sun.castShadow!==sh)sun.castShadow=sh;
+  cloudMat.uniforms.uQ.value=rScale>.62?6:4;
+  if(frameN%10===0){$('pQ').textContent=Math.round(rScale*100)+'%';$('pF').textContent=Math.round(1000/Math.max(ema,1));}
+}
+
+/* ================= GENERATIVE 6-ACT SCORE + LIVE AMBIENCE (Web Audio, all original) ================= */
+const NOTE=m=>440*2**((m-69)/12);
+const SCALES={phrygian:[0,1,3,5,7,8,10],hijaz:[0,1,4,5,7,8,11],minor:[0,2,3,5,7,8,10],major:[0,2,4,5,7,9,11],dorian:[0,2,3,5,7,9,10]};
+const AC=[
+ {root:38,sc:'phrygian',tempo:40,bright:500, pad:.9, pluck:.05,lead:0, bell:.05,drum:0, dens:.15,drone:.5},
+ {root:45,sc:'dorian',  tempo:52,bright:900, pad:.8, pluck:.3, lead:0, bell:.2, drum:0, dens:.3, drone:.4},
+ {root:45,sc:'phrygian',tempo:96,bright:1400,pad:.45,pluck:0, lead:.7,bell:0,  drum:.8,dens:.55,drone:.5},
+ {root:50,sc:'hijaz',   tempo:80,bright:1800,pad:.35,pluck:.8,lead:.25,bell:0, drum:.3,dens:.5, drone:.35},
+ {root:43,sc:'minor',   tempo:46,bright:1100,pad:1,  pluck:0, lead:0, bell:.3, drum:0, dens:.25,drone:.45},
+ {root:47,sc:'major',   tempo:60,bright:2400,pad:.8, pluck:.2,lead:.3,bell:.8, drum:0, dens:.6, drone:.3},
+];
+let ACX=null,layers={},actG={},curAct=0,scoreOn=false,ambOn=false,nextBeat=0,beatN=0,master=null,ambBus=null,windG=null,windF=null,nextBird=0,nextCricket=0;
+function ensureAudio(){
+  if(ACX)return;
+  ACX=new (window.AudioContext||window.webkitAudioContext)();
+  master=ACX.createDynamicsCompressor();
+  const mg=ACX.createGain();mg.gain.value=.8;master.connect(mg);mg.connect(ACX.destination);
+  for(const k of ['pad','pluck','lead','bell','drum','drone']){const g=ACX.createGain();g.gain.value=0;g.connect(master);actG[k]=g;}
+  const o1=ACX.createOscillator(),o2=ACX.createOscillator(),lp=ACX.createBiquadFilter();
+  o1.type='sawtooth';o2.type='sawtooth';o2.detune.value=6;lp.type='lowpass';
+  o1.connect(lp);o2.connect(lp);lp.connect(actG.drone);o1.start();o2.start();layers.drone={o1,o2,lp};
+  // ambience bus: looping wind noise + scheduled birds (day) and crickets (night)
+  ambBus=ACX.createGain();ambBus.gain.value=0;ambBus.connect(master);
+  const nb=ACX.createBuffer(1,ACX.sampleRate*3,ACX.sampleRate),nd=nb.getChannelData(0);
+  let lastv=0;for(let i=0;i<nd.length;i++){lastv=lastv*.96+(Math.random()*2-1)*.04;nd[i]=lastv*8;}   // brown-ish noise
+  const ns=ACX.createBufferSource();ns.buffer=nb;ns.loop=true;
+  windF=ACX.createBiquadFilter();windF.type='bandpass';windF.frequency.value=500;windF.Q.value=.6;
+  windG=ACX.createGain();windG.gain.value=.05;ns.connect(windF);windF.connect(windG);windG.connect(ambBus);ns.start();
+  nextBeat=ACX.currentTime+.1;nextBird=ACX.currentTime+2;nextCricket=ACX.currentTime+1;
+  setInterval(scheduler,120);
+}
+function scheduler(){
+  if(!ACX)return;
+  const T=ACX.currentTime;
+  if(scoreOn){
+    const A=AC[curAct];
+    while(nextBeat<T+.35){
+      const t=nextBeat,bd=60/A.tempo;
+      if(beatN%4===0)chordPad(t,bd*4,A);
+      if(Math.random()<A.dens&&A.pluck>0)ksPluck(NOTE(A.root+12+pickScale(A)),t,.5*A.pluck,actG.pluck,A);
+      if(Math.random()<A.dens*.7&&A.bell>0)bell(NOTE(A.root+24+pickScale(A)),t,.4*A.bell,actG.bell);
+      if(Math.random()<A.dens*.6&&A.lead>0)leadNote(NOTE(A.root+24+pickScale(A)),t,bd*1.8,A);
+      if(A.drum>0){if(beatN%2===0)kick(t,actG.drum);if(beatN%8===4)tom(t,actG.drum);if(beatN%4===2&&Math.random()<.6)snare(t,actG.drum);}
+      nextBeat+=bd/2;beatN++;
+    }
+    const d=layers.drone;
+    d.o1.frequency.setTargetAtTime(NOTE(A.root-12),T,.8);d.o2.frequency.setTargetAtTime(NOTE(A.root-12),T,.8);
+    d.lp.frequency.setTargetAtTime(A.bright,T,.8);
+  }else nextBeat=T+.1;
+  if(ambOn){
+    // wind follows weather and how high the viewer is
+    const alt=clamp((focusH+430)/1500,0,1),gm=groundMode?1:.55;
+    windG.gain.setTargetAtTime((.03+WX.wind*.0045)*(.6+alt*.8)*gm,T,.6);
+    windF.frequency.setTargetAtTime(300+WX.wind*22+alt*250,T,.6);
+    if(groundMode&&dayF>.35&&T>nextBird){birdCall(T+.05);nextBird=T+1.5+Math.random()*5;}
+    if(groundMode&&nightF>.5&&T>nextCricket){cricket(T+.05);nextCricket=T+.25+Math.random()*.7;}
+  }
+}
+function birdCall(t){
+  const n=2+Math.floor(Math.random()*4),base=2400+Math.random()*2200;
+  for(let i=0;i<n;i++){
+    const o=ACX.createOscillator(),g=ACX.createGain(),s=t+i*.11;o.type='sine';
+    o.frequency.setValueAtTime(base,s);o.frequency.exponentialRampToValueAtTime(base*(1.2+Math.random()*.5),s+.07);
+    o.frequency.exponentialRampToValueAtTime(base*.9,s+.1);
+    g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.05,s+.01);g.gain.exponentialRampToValueAtTime(.0001,s+.1);
+    o.connect(g);g.connect(ambBus);o.start(s);o.stop(s+.12);
+  }
+}
+function cricket(t){
+  const f=4300+Math.random()*500;
+  for(let i=0;i<4;i++){
+    const o=ACX.createOscillator(),g=ACX.createGain(),s=t+i*.045;o.type='sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.022,s+.008);g.gain.exponentialRampToValueAtTime(.0001,s+.035);
+    o.connect(g);g.connect(ambBus);o.start(s);o.stop(s+.04);
+  }
+}
+function pickScale(A){const s=SCALES[A.sc];return s[Math.floor(Math.random()*s.length)]+(Math.random()<.3?12:0);}
+function env(g,t,a,peak,dec){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(.0001,t+a+dec);}
+function chordPad(t,dur,A){
+  const s=SCALES[A.sc];
+  [0,2,4].forEach((k,i)=>{const f=NOTE(A.root+12+s[k%s.length]);
+    const o=ACX.createOscillator();o.type='triangle';o.frequency.value=f;o.detune.value=(i-1)*5;
+    const g=ACX.createGain();o.connect(g);g.connect(actG.pad);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.11,t+dur*.3);g.gain.linearRampToValueAtTime(.0001,t+dur*1.05);
+    o.start(t);o.stop(t+dur*1.1);});
+}
+function ksPluck(freq,t,vol,dest,A){
+  const d=ACX.createDelay(),fb=ACX.createGain(),lp=ACX.createBiquadFilter(),g=ACX.createGain();
+  d.delayTime.value=1/freq;fb.gain.value=.965;lp.type='lowpass';lp.frequency.value=A.bright*2;
+  d.connect(lp);lp.connect(fb);fb.connect(d);
+  const src=ACX.createBufferSource(),buf=ACX.createBuffer(1,ACX.sampleRate*.02|0,ACX.sampleRate),ch=buf.getChannelData(0);
+  for(let i=0;i<ch.length;i++)ch[i]=Math.random()*2-1;
+  src.buffer=buf;src.connect(d);d.connect(g);g.connect(dest);env(g,t,.003,vol,1.2);src.start(t);src.stop(t+.05);
+}
+function bell(f,t,vol,dest){
+  [[1,.6],[2.76,.25],[5.4,.1]].forEach(hm=>{const o=ACX.createOscillator();o.type='sine';o.frequency.value=f*hm[0];
+    const g=ACX.createGain();o.connect(g);g.connect(dest);env(g,t,.005,vol*hm[1],2.2);o.start(t);o.stop(t+2.5);});
+}
+function leadNote(f,t,dur,A){
+  const o=ACX.createOscillator();o.type='sawtooth';o.frequency.value=f;
+  const vib=ACX.createOscillator();vib.frequency.value=5.5;const vg=ACX.createGain();vg.gain.value=4;
+  vib.connect(vg);vg.connect(o.detune);
+  const lp=ACX.createBiquadFilter();lp.type='lowpass';lp.frequency.value=A.bright;lp.Q.value=2;
+  const g=ACX.createGain();o.connect(lp);lp.connect(g);g.connect(actG.lead);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.16,t+.15);g.gain.setTargetAtTime(.0001,t+dur,.15);
+  o.start(t);o.stop(t+dur+.8);vib.start(t);vib.stop(t+dur+.8);
+}
+function kick(t,dest){const o=ACX.createOscillator();o.frequency.setValueAtTime(130,t);o.frequency.exponentialRampToValueAtTime(45,t+.12);
+  const g=ACX.createGain();o.connect(g);g.connect(dest);env(g,t,.002,.9,.25);o.start(t);o.stop(t+.3);}
+function snare(t,dest){const s=ACX.createBufferSource(),b=ACX.createBuffer(1,3000,ACX.sampleRate),ch=b.getChannelData(0);
+  for(let i=0;i<3000;i++)ch[i]=(Math.random()*2-1)*(1-i/3000);s.buffer=b;
+  const bp=ACX.createBiquadFilter();bp.type='bandpass';bp.frequency.value=1800;
+  const g=ACX.createGain();s.connect(bp);bp.connect(g);g.connect(dest);env(g,t,.001,.5,.15);s.start(t);}
+function tom(t,dest){const o=ACX.createOscillator();o.frequency.setValueAtTime(180,t);o.frequency.exponentialRampToValueAtTime(70,t+.2);
+  const g=ACX.createGain();o.connect(g);g.connect(dest);env(g,t,.002,.7,.3);o.start(t);o.stop(t+.4);}
+function audioAct(a){
+  curAct=a;if(!ACX||!scoreOn)return;
+  const T=ACX.currentTime,A=AC[a];
+  for(const k of ['pad','pluck','lead','bell','drum','drone'])actG[k].gain.setTargetAtTime(A[k]??0,T,2.2);
+}
+function setScore(on){
+  scoreOn=on;if(on)ensureAudio();
+  if(ACX){ACX.resume();
+    if(on)audioAct(curAct);
+    else{const T=ACX.currentTime;for(const k in actG)actG[k].gain.setTargetAtTime(0,T,.4);}}
+  $('bSnd').classList.toggle('on',on);
+}
+function setAmb(on){
+  ambOn=on;if(on)ensureAudio();
+  if(ACX){ACX.resume();ambBus.gain.setTargetAtTime(on?1:0,ACX.currentTime,.5);}
+  $('bAmb').classList.toggle('on',on);
+}
+
+/* ================= EXPERIENCE MODE: one cinematic day, dawn at the rift to night at the shrine ================= */
+let cinema=false,cinePos=0,cineLast=0,cinePrev=null;
+const CINE_SECONDS=150;
+function setCinema(on){
+  cinema=on;$('bExp').classList.toggle('on',on);
+  $('bExp').textContent=on?'■ STOP':'▶ EXPERIENCE';
+  $('hud').style.opacity=on?.25:1;$('timebox').style.opacity=on?.25:1;
+  if(on){
+    cinePrev={follow:followDay,ground:groundMode};
+    if(freeMode)$('bOrbit').click();
+    if(groundMode)setGround(false);
+    setFollow(true);setScore(true);setAmb(true);
+    if(scrollY>document.documentElement.scrollHeight-innerHeight-10)window.scrollTo(0,0);
+    cinePos=scrollY;cineLast=0;
+    try{document.documentElement.requestFullscreen().catch(()=>{});}catch(e){}
+  }else{
+    if(cinePrev)setFollow(cinePrev.follow);
+    try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}
+  }
+}
+addEventListener('wheel',()=>{if(cinema)setCinema(false);},{passive:true});
+addEventListener('touchstart',()=>{if(cinema)setCinema(false);},{passive:true});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&cinema)setCinema(false);});
+
+/* ================= LIVE WEATHER (optional; falls back to typical desert conditions) ================= */
+async function loadWeather(){
+  try{
+    const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=31.07&longitude=35.70&current=temperature_2m,cloud_cover,wind_speed_10m,wind_direction_10m,relative_humidity_2m&timezone=Asia%2FAmman');
+    const j=(await r.json()).current;
+    WX.cloud=clamp(j.cloud_cover/100,0,1);WX.wind=j.wind_speed_10m;WX.dir=j.wind_direction_10m;
+    WX.temp=j.temperature_2m;WX.hum=j.relative_humidity_2m;WX.live=true;applyTime();
+  }catch(e){/* offline or blocked: keep typical values */}
+}
+
+/* ================= CONTROLS ================= */
+function setFollow(on){followDay=on;$('bFollow').classList.toggle('on',on);if(on){liveMode=false;cycling=false;$('bCycle').classList.remove('on');readScroll();}}
+let clockT=0;
+function setLive(){
+  const n=new Date();dayY=n.getFullYear();dayM=n.getMonth();dayD=n.getDate();
+  const utc=n.getUTCHours()+n.getUTCMinutes()/60+n.getUTCSeconds()/3600;
+  hour=((utc+TZ)%24+24)%24;
+  // the Date above is local to the viewer; align the calendar day to Jordan time
+  const jd=new Date(n.getTime()+TZ*3600e3);dayY=jd.getUTCFullYear();dayM=jd.getUTCMonth();dayD=jd.getUTCDate();
+  liveMode=true;cycling=false;followDay=false;clockT=performance.now()/1000;
+  $('bCycle').classList.remove('on');$('bFollow').classList.remove('on');
+  applyTime();updateEnv(true);loadWeather();
+}
+$('bSnd').onclick=()=>setScore(!scoreOn);
+$('bAmb').onclick=()=>setAmb(!ambOn);
+$('bExp').onclick=()=>setCinema(!cinema);
+$('bGround').onclick=()=>setGround(!groundMode);
+$('bOrbit').onclick=()=>{freeMode=!freeMode;controls.enabled=freeMode;$('bOrbit').classList.toggle('on',freeMode);
+  $('bOrbit').textContent=freeMode?'✋ EXIT FREE VIEW':'✋ FREE VIEW';
+  if(freeMode&&groundMode)setGround(false);if(!freeMode)readScroll();};
+$('bReset').onclick=()=>{if(cinema)setCinema(false);window.scrollTo({top:0,behavior:'smooth'});};
+$('bLive').onclick=setLive;
+$('bCycle').onclick=()=>{cycling=!cycling;$('bCycle').classList.toggle('on',cycling);if(cycling){followDay=false;liveMode=false;$('bFollow').classList.remove('on');}};
+$('bFollow').onclick=()=>setFollow(!followDay);
+$('tRange').oninput=e=>{hour=+e.target.value;cycling=false;liveMode=false;followDay=false;
+  $('bCycle').classList.remove('on');$('bFollow').classList.remove('on');applyTime();updateEnv(true);};
+$('dIn').onchange=e=>{const p=(e.target.value||'').split('-').map(Number);
+  if(p.length===3&&p[0]){dayY=p[0];dayM=p[1]-1;dayD=p[2];liveMode=false;applyTime();updateEnv(true);}};
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+/* ================= BOOT & MAIN LOOP ================= */
+(async()=>{
+  try{
+    if(location.search.includes('offline'))throw new Error('offline');
+    await fetchElev();
+  }catch(e){proceduralFallback();imgCanvas=null;}
+  if(live){try{await fetchImg();}catch(e){imgCanvas=null;dataMode='SRTM · NO IMAGERY';}}
+  $('pD').textContent=dataMode;
+  buildTerrain();
+  { const r=sunTimes();hour=r.rise+1.3;applyTime();loadWeather(); }   // open in morning light; LIVE NOW jumps to the real clock
+  readScroll();updAct();updateEnv(true);
+  const l=$('loader');l.style.opacity=0;setTimeout(()=>l.remove(),900);
+  requestAnimationFrame(loop);
+})();
+
+function loop(now){
+  requestAnimationFrame(loop);
+  perfFrame(now);
+  const sec=now/1000;
+  if(cycling){hour=(hour+24/90/60)%24;liveMode=false;applyTime();}
+  else if(liveMode&&sec-clockT>2){clockT=sec;const jd=new Date(Date.now()+TZ*3600e3);
+    dayY=jd.getUTCFullYear();dayM=jd.getUTCMonth();dayD=jd.getUTCDate();
+    hour=jd.getUTCHours()+jd.getUTCMinutes()/60+jd.getUTCSeconds()/3600;applyTime();}
+  if(cinema){
+    const dt=cineLast?Math.min((now-cineLast)/1000,.1):0;cineLast=now;
+    const max=document.documentElement.scrollHeight-innerHeight;
+    cinePos+=max/CINE_SECONDS*dt;
+    if(cinePos>=max){window.scrollTo(0,max);setCinema(false);}else window.scrollTo(0,cinePos);
+  }
+  // ease the world between aerial exaggeration and true scale
+  const target=groundMode?1/EXAG:1;
+  if(Math.abs(G.scale.y-target)>.0005)G.scale.y+=(target-G.scale.y)*.07;else G.scale.y=target;
+  const gb=sm(gBlend());
+  climber.visible=beacon.visible=gb<.5;
+  shrubs.visible=gb>.5&&rScale>.5;
+  if(shrubs.visible)refreshShrubs(focusX,focusZ);
+  waterNormal.offset.x=sec*.003*(1+WX.wind*.05);waterNormal.offset.y=sec*.0017;
+  starMat.uniforms.uTime.value=sec;lightsMat.uniforms.uTime.value=sec;cloudMat.uniforms.uTime.value=sec;
+  if(!freeMode){camAt(scrollT);placeCamera(sec);}else controls.update();
+  // sky dome, stars, moon and clouds travel with the camera so they stay at infinity
+  sky.position.copy(cam.position);starTilt.position.copy(cam.position);cloudMat.uniforms.uCam.value.copy(cam.position);
+  if(SK){
+    moonSpr.position.copy(cam.position).addScaledVector(SK.moonDir,6500);moonGlow.position.copy(moonSpr.position);
+    // shadow rig follows what the camera is looking at; tighter frustum on the ground for sharper shadows
+    const fx=groundMode?cam.position:controls.target;
+    sun.target.position.copy(fx);sun.position.copy(fx).addScaledVector(SK.sunDir,1500);
+    moonL.target.position.copy(fx);moonL.position.copy(fx).addScaledVector(SK.moonDir,1500);
+    setShadowBox(lerp(330,18,gb));
+  }
+  const h=Math.round(focusH);
+  $('altv').textContent=(h<0?'−':'')+Math.abs(h).toLocaleString('en-US');
+  updAct();updLabels();
+  renderer.render(scene,cam);
+}
+</script>
+</body>
+</html>
