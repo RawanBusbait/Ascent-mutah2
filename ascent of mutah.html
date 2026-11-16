@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent of Mutah · جبل مؤتة</title>
+<meta name="author" content="Rawan Busbait"><meta name="copyright" content="© 2026 Rawan Busbait. All rights reserved.">
+<!-- © 2026 Rawan Busbait · روان بوسبيت. جميع الحقوق محفوظة / All rights reserved. -->
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
+}}
+</script>
+<style>
+:root{--gold:#d4a24e;--ink:#07090d;--card:rgba(8,11,17,.74)}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:auto}
+body{background:var(--ink);color:#e8e2d5;font-family:Georgia,'Times New Roman',serif;overflow-x:hidden}
+#gl{position:fixed;inset:0;z-index:0}
+#journey{position:relative;height:720vh;z-index:1;pointer-events:none}
+/* intro */
+#intro{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;z-index:6;pointer-events:none;transition:opacity .8s;padding:0 20px;text-shadow:0 2px 24px #000}
+#intro h1{font-size:clamp(34px,7vw,84px);letter-spacing:.12em;font-weight:400}
+#intro h1 span{display:block;font-size:.35em;color:var(--gold);letter-spacing:.4em;margin-top:10px}
+#intro p{max-width:580px;margin-top:22px;color:#cfc8b8;font-size:15px;line-height:1.7}
+#intro .hint{margin-top:34px;font-size:12px;letter-spacing:.3em;color:#a39a86;animation:bob 2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(8px)}}
+@media(prefers-reduced-motion:reduce){#intro .hint{animation:none}}
+/* act card */
+#card{position:fixed;left:26px;bottom:30px;width:min(440px,calc(100vw - 52px));z-index:5;pointer-events:none;
+  background:var(--card);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(212,162,78,.28);
+  border-radius:16px;padding:20px 24px;transition:opacity .5s,transform .5s}
+#card.hide{opacity:0;transform:translateY(20px)}
+#card .act{font-size:10.5px;letter-spacing:.3em;color:var(--gold)}
+#card h2{font-size:22px;margin:8px 0 8px;font-weight:400}
+#card p{font-size:13.5px;line-height:1.75;color:#d6cfc0}
+#card .note{margin-top:10px;font-size:11.5px;line-height:1.6;color:#a39a86;font-style:italic}
+#card .stat{display:flex;gap:18px;margin-top:12px;border-top:1px solid rgba(212,162,78,.2);padding-top:10px;flex-wrap:wrap}
+#card .stat div b{display:block;color:var(--gold);font-size:16px;font-weight:400}
+#card .stat div i{font-style:normal;font-size:10px;letter-spacing:.12em;color:#9d9482;text-transform:uppercase}
+/* hud */
+#hud{position:fixed;right:22px;top:20px;z-index:7;display:flex;flex-direction:column;gap:10px;align-items:flex-end;transition:opacity .4s}
+#hud .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+button{font-family:inherit;cursor:pointer;background:rgba(212,162,78,.1);color:var(--gold);
+  border:1px solid rgba(212,162,78,.45);border-radius:9px;padding:8px 14px;font-size:12px;letter-spacing:.08em;transition:.2s}
+button:hover{background:rgba(212,162,78,.28)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button.on{background:var(--gold);color:#17110a}
+#alt{position:fixed;left:26px;top:22px;z-index:5;pointer-events:none;text-shadow:0 1px 12px #000}
+#alt b{font-size:30px;font-weight:400;color:var(--gold);font-variant-numeric:tabular-nums}
+#alt small{display:block;font-size:10px;letter-spacing:.3em;color:#b3aa97;margin-top:2px}
+#rail{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;gap:14px;pointer-events:none}
+#rail div{width:8px;height:8px;border-radius:50%;background:#3a352b;transition:.3s}
+#rail div.on{background:var(--gold);box-shadow:0 0 10px var(--gold);transform:scale(1.4)}
+#perf{position:fixed;left:50%;transform:translateX(-50%);top:14px;z-index:5;font-size:10px;letter-spacing:.14em;color:#8a8170;pointer-events:none;font-family:monospace;white-space:nowrap;text-shadow:0 1px 8px #000}
+#perf b{color:#c9bfa8;font-weight:400}
+#attr{position:fixed;left:50%;transform:translateX(-50%);bottom:6px;z-index:5;font-size:9px;color:#7b7364;pointer-events:none;white-space:nowrap;letter-spacing:.06em}
+/* time */
+#timebox{position:fixed;right:22px;bottom:26px;z-index:7;background:var(--card);border:1px solid rgba(212,162,78,.25);
+  border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;width:190px;transition:opacity .4s}
+#timebox label{font-size:9.5px;letter-spacing:.22em;color:#a39a86}
+#timebox input{width:100%;accent-color:var(--gold)}
+#timebox .lab{font-size:11px;color:var(--gold);text-align:center;font-variant-numeric:tabular-nums}
+/* loader */
+#loader{position:fixed;inset:0;background:var(--ink);z-index:20;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;transition:opacity .9s}
+#loader h1{font-size:26px;letter-spacing:.25em;font-weight:400;text-align:center}
+#loader h1 span{color:var(--gold)}
+#loader .bar{width:min(380px,70vw);height:3px;background:#23201a;border-radius:2px;overflow:hidden}
+#loader .bar i{display:block;height:100%;width:0%;background:var(--gold);transition:width .2s}
+#loader p{font-size:11px;letter-spacing:.22em;color:#8a8170;text-align:center;padding:0 16px}
+.lbl{position:fixed;transform:translate(-50%,-130%);font-size:10.5px;padding:3px 9px;border-radius:20px;
+  background:rgba(7,9,13,.85);border:1px solid rgba(212,162,78,.6);color:#ffe9c4;pointer-events:none;white-space:nowrap;z-index:4}
+.dot{position:fixed;width:8px;height:8px;border-radius:50%;background:var(--gold);transform:translate(-50%,-50%);
+  box-shadow:0 0 12px var(--gold);pointer-events:none;z-index:4}
+@media(max-width:640px){#timebox{display:none}#hud .row{max-width:62vw}#perf{display:none}#card{padding:16px 18px}#card p{font-size:12.5px}}
+#copyright{position:fixed;left:max(26px,env(safe-area-inset-left));top:calc(76px + env(safe-area-inset-top,0px));z-index:5;pointer-events:none;font-size:11px;letter-spacing:.08em;line-height:1.6;color:#e8e2d5;opacity:.8;text-shadow:0 1px 8px #000,0 0 3px #000}
+#copyright b{font-weight:400;color:var(--gold)}
+#intro .by{margin-top:18px;font-size:12px;letter-spacing:.2em;color:var(--gold)}
+</style>
+</head>
+<body>
+<div id="gl"></div>
+<div id="journey"></div>
+
+<div id="loader">
+  <h1>ASCENT <span>OF</span> MUTAH</h1>
+  <div class="bar"><i id="lfill"></i></div>
+  <p id="lmsg">DOWNLOADING SRTM ELEVATION</p>
+</div>
+
+<div id="intro">
+  <h1>ASCENT OF MUTAH<span>جبل مؤتة · KARAK · JORDAN</span></h1>
+  <p>A real-time 3D expedition built from SRTM satellite elevation and Esri World Imagery.
+  Scroll to climb from the Dead Sea shore, the lowest exposed land on Earth,
+  to the shrine of Ja'far al-Tayyar at Mu'tah, about 1,500 metres higher.</p>
+  <div class="by">© Rawan Busbait · روان بوسبيت</div>
+  <div class="hint">▼ &nbsp;SCROLL TO ASCEND&nbsp; ▼</div>
+</div>
+
+<div id="copyright" dir="auto">© 2026 <b>Rawan Busbait</b> · روان بوسبيت<br>All rights reserved · جميع الحقوق محفوظة</div>
+
+<div id="alt"><b id="altv">−430</b><small>METRES · CLIMBER ELEVATION</small></div>
+
+<div id="card" class="hide">
+  <div class="act" id="cAct"></div>
+  <h2 id="cT"></h2><p id="cB"></p><div class="note" id="cN"></div>
+  <div class="stat" id="cStat"></div>
+</div>
+
+<div id="rail"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+
+<div id="hud">
+  <div class="row">
+    <button id="bExp">▶ EXPERIENCE</button>
+    <button id="bSnd">♪ SCORE</button>
+    <button id="bOrbit">✋ FREE VIEW</button>
+  </div>
+  <div class="row"><button id="bReset">⌂ RESTART ASCENT</button></div>
+</div>
+
+<div id="timebox">
+  <label for="tRange">SOLAR TIME · DAY / NIGHT</label>
+  <input type="range" id="tRange" min="0" max="24" step="0.05" value="9.5">
+  <div class="lab" id="tLab">09:30</div>
+  <div style="display:flex;justify-content:center"><button id="bCycle" style="padding:4px 10px;font-size:10px">⟳ CYCLE 24H</button></div>
+</div>
+
+<div id="perf">DATA <b id="pD">—</b> · RENDER <b id="pQ">—</b> · <b id="pF">—</b> FPS · FRAME-BY-FRAME ENGINE</div>
+<div id="attr">Elevation: Mapzen Terrain Tiles (SRTM) · Imagery © Esri, Maxar, Earthstar Geographics</div>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+const $=id=>document.getElementById(id);
+
+/* ================= CONFIG ================= */
+const LONMIN=35.42, LONMAX=35.98, LATMIN=30.85, LATMAX=31.25;
+const LONC=(LONMIN+LONMAX)/2, LATC=(LATMIN+LATMAX)/2;
+const KX=954, KY=1113;              // world units (100 m) per degree at lat 31
+const EXAG=1.5;                     // vertical exaggeration
+const ELEV_Z=11, IMG_Z=12;
+const DEAD_SEA=-430;
+const W=(LONMAX-LONMIN)*KX, Hh=(LATMAX-LATMIN)*KY;
+
+const merc=lat=>{const r=lat*Math.PI/180;return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2;};
+const lon2x=(lon,z)=>Math.floor((lon+180)/360*2**z);
+const lat2y=(lat,z)=>Math.floor(merc(lat)*2**z);
+const ll2w=(lon,lat)=>[(lon-LONC)*KX,-(lat-LATC)*KY];
+const wY=h=>h/100*EXAG;
+
+/* ================= DATA LOADING ================= */
+const lfill=$('lfill'),lmsg=$('lmsg');
+let loaded=0,total=1;
+const tick=m=>{loaded++;lfill.style.width=Math.min(100,loaded/total*100)+'%';lmsg.textContent=m;};
+const loadImg=url=>new Promise((res,rej)=>{const im=new Image();im.crossOrigin='anonymous';
+  im.onload=()=>res(im);im.onerror=()=>rej(new Error('tile '+url));im.src=url;});
+
+const eT={x0:lon2x(LONMIN,ELEV_Z),x1:lon2x(LONMAX,ELEV_Z),y0:lat2y(LATMAX,ELEV_Z),y1:lat2y(LATMIN,ELEV_Z)};
+const iT={x0:lon2x(LONMIN,IMG_Z),x1:lon2x(LONMAX,IMG_Z),y0:lat2y(LATMAX,IMG_Z),y1:lat2y(LATMIN,IMG_Z)};
+const nE=(eT.x1-eT.x0+1)*(eT.y1-eT.y0+1), nI=(iT.x1-iT.x0+1)*(iT.y1-iT.y0+1);
+total=nE+nI;
+
+let heights=null,HW=0,HH=0,imgCanvas=null,dataMode='LIVE SRTM';
+
+async function fetchElev(){
+  const tw=eT.x1-eT.x0+1,th=eT.y1-eT.y0+1;
+  const cv=document.createElement('canvas');cv.width=tw*256;cv.height=th*256;
+  const cx=cv.getContext('2d',{willReadFrequently:true});
+  const jobs=[];
+  for(let ty=0;ty<th;ty++)for(let tx=0;tx<tw;tx++)
+    jobs.push(loadImg(`https://elevation-tiles-prod.s3.amazonaws.com/terrarium/${ELEV_Z}/${eT.x0+tx}/${eT.y0+ty}.png`)
+      .then(im=>{cx.drawImage(im,tx*256,ty*256);tick('DOWNLOADING SRTM ELEVATION');}));
+  await Promise.all(jobs);
+  const d=cx.getImageData(0,0,cv.width,cv.height).data;
+  HW=cv.width;HH=cv.height;heights=new Float32Array(HW*HH);
+  for(let i=0;i<HW*HH;i++)heights[i]=d[i*4]*256+d[i*4+1]+d[i*4+2]/256-32768;
+}
+async function fetchImg(){
+  const tw=iT.x1-iT.x0+1,th=iT.y1-iT.y0+1;
+  const raw=document.createElement('canvas');raw.width=tw*256;raw.height=th*256;
+  const cx=raw.getContext('2d');
+  const jobs=[];
+  for(let ty=0;ty<th;ty++)for(let tx=0;tx<tw;tx++)
+    jobs.push(loadImg(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${IMG_Z}/${iT.y0+ty}/${iT.x0+tx}`)
+      .then(im=>{cx.drawImage(im,tx*256,ty*256);tick('STITCHING ESRI WORLD IMAGERY');}));
+  await Promise.all(jobs);
+  const gx=lon=>(lon+180)/360*2**IMG_Z*256, gy=lat=>merc(lat)*2**IMG_Z*256;
+  const ox=gx(LONMIN)-iT.x0*256, oy=gy(LATMAX)-iT.y0*256;
+  const cw=Math.round(gx(LONMAX)-gx(LONMIN)), ch=Math.round(gy(LATMIN)-gy(LATMAX));
+  imgCanvas=document.createElement('canvas');imgCanvas.width=cw;imgCanvas.height=ch;
+  imgCanvas.getContext('2d').drawImage(raw,Math.round(ox),Math.round(oy),cw,ch,0,0,cw,ch);
+  imgCanvas.getContext('2d').getImageData(0,0,1,1);   // throws if the canvas is tainted
+}
+/* Stand-in terrain used only when the tile servers cannot be reached. */
+function proceduralFallback(){
+  dataMode='OFFLINE STAND-IN';
+  HW=512;HH=384;heights=new Float32Array(HW*HH);
+  const rnd=(a,b)=>{const x=Math.sin(a*127.1+b*311.7)*43758.5453;return x-Math.floor(x);};
+  const nz=(u,v)=>{const i=Math.floor(u),j=Math.floor(v),f=u-i,g=v-j,s=(a,b,t)=>a+(b-a)*(t*t*(3-2*t));
+    return s(s(rnd(i,j),rnd(i+1,j),f),s(rnd(i,j+1),rnd(i+1,j+1),f),g);};
+  for(let y=0;y<HH;y++)for(let x=0;x<HW;x++){
+    const u=x/HW,v=y/HH;let h=-430;
+    const esc=1/(1+Math.exp(-(u-0.38)/0.05));
+    h+=esc*1450+90*nz(u*6,v*6)+30*nz(u*18,v*18);
+    heights[y*HW+x]=h;
+  }
+}
+/* Sample elevation (m) at lon/lat. Live tiles are indexed in web-mercator pixel space. */
+let live=true;
+function heightAt(lon,lat){
+  let gx,gy;
+  if(live){
+    gx=(lon+180)/360*2**ELEV_Z*256-eT.x0*256;
+    gy=merc(lat)*2**ELEV_Z*256-eT.y0*256;
+  }else{
+    gx=(lon-LONMIN)/(LONMAX-LONMIN)*(HW-1);
+    gy=(LATMAX-lat)/(LATMAX-LATMIN)*(HH-1);
+  }
+  const x0=Math.max(0,Math.min(HW-2,Math.floor(gx))),y0=Math.max(0,Math.min(HH-2,Math.floor(gy)));
+  const fx=Math.max(0,Math.min(1,gx-x0)),fy=Math.max(0,Math.min(1,gy-y0));
+  const a=heights[y0*HW+x0],b=heights[y0*HW+x0+1],c=heights[(y0+1)*HW+x0],d=heights[(y0+1)*HW+x0+1];
+  return a*(1-fx)*(1-fy)+b*fx*(1-fy)+c*(1-fx)*fy+d*fx*fy;
+}
+
+/* ================= SCENE ================= */
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0xcfd8de,350,1100);
+const cam=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,4000);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;
+$('gl').appendChild(renderer.domElement);
+const controls=new OrbitControls(cam,renderer.domElement);
+controls.enableDamping=true;controls.maxPolarAngle=Math.PI*.495;
+controls.minDistance=5;controls.maxDistance=900;controls.enabled=false;
+
+const sun=new THREE.DirectionalLight(0xfff2dd,2.6);
+sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+const sc=sun.shadow.camera;sc.left=-350;sc.right=350;sc.top=350;sc.bottom=-350;sc.far=2000;
+scene.add(sun,sun.target);
+const hemi=new THREE.HemisphereLight(0xbcd4e6,0x6b5a44,.9);scene.add(hemi);
+
+const starGeo=new THREE.BufferGeometry();const sp=[];
+for(let i=0;i<1600;i++){const a=Math.random()*Math.PI*2,b=Math.acos(Math.random()*.95),r=2200;
+  sp.push(r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a));}
+starGeo.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));
+const starMat=new THREE.PointsMaterial({color:0xcdd8ff,size:2.2,transparent:true,opacity:0,sizeAttenuation:false,fog:false});
+scene.add(new THREE.Points(starGeo,starMat));
+
+let terrain,water,terrainMat,climber,beacon;
+function buildTerrain(){
+  const gw=384,gh=288;
+  const geo=new THREE.PlaneGeometry(W,Hh,gw-1,gh-1);geo.rotateX(-Math.PI/2);
+  const pos=geo.attributes.position;
+  for(let iy=0;iy<gh;iy++)for(let ix=0;ix<gw;ix++){
+    const i=iy*gw+ix;
+    const lon=LONMIN+(ix/(gw-1))*(LONMAX-LONMIN), lat=LATMAX-(iy/(gh-1))*(LATMAX-LATMIN);
+    const [x,z]=ll2w(lon,lat);
+    pos.setXYZ(i,x,wY(heightAt(lon,lat)),z);
+  }
+  geo.computeVertexNormals();
+  terrainMat=new THREE.MeshStandardMaterial({roughness:.96,metalness:0,flatShading:!imgCanvas});
+  if(imgCanvas){
+    const tex=new THREE.CanvasTexture(imgCanvas);tex.colorSpace=THREE.SRGBColorSpace;
+    tex.anisotropy=renderer.capabilities.getMaxAnisotropy();terrainMat.map=tex;
+  }else{
+    terrainMat.vertexColors=true;
+    const cols=[],c1=new THREE.Color(0xc9b58a),c2=new THREE.Color(0x8a6f4d),c3=new THREE.Color(0xa08763),cc=new THREE.Color();
+    for(let i=0;i<pos.count;i++){const h=pos.getY(i)/EXAG*100+430;
+      cc.copy(c1).lerp(c2,THREE.MathUtils.clamp(h/900,0,1)).lerp(c3,THREE.MathUtils.clamp((h-700)/700,0,1));
+      cols.push(cc.r,cc.g,cc.b);}
+    geo.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
+  }
+  terrain=new THREE.Mesh(geo,terrainMat);terrain.receiveShadow=true;terrain.castShadow=true;
+  scene.add(terrain);
+  water=new THREE.Mesh(new THREE.PlaneGeometry(W*1.6,Hh*1.6),
+    new THREE.MeshStandardMaterial({color:0x2e6f8e,transparent:true,opacity:.88,roughness:.12,metalness:.35}));
+  water.rotation.x=-Math.PI/2;water.position.y=wY(DEAD_SEA)+.2;scene.add(water);
+  // climber marker + light pillar
+  climber=new THREE.Mesh(new THREE.ConeGeometry(.9,2.4,12),new THREE.MeshBasicMaterial({color:0xffc861,fog:false}));
+  scene.add(climber);
+  beacon=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,60,8),
+    new THREE.MeshBasicMaterial({color:0xffc861,transparent:true,opacity:.35,fog:false}));
+  scene.add(beacon);
+}
+
+/* ================= CLIMBER ROUTE + CAMERA (scroll driven) ================= */
+// The climber walks a straight line from the Dead Sea shore to the Maqam at Mazar (Mu'tah).
+const ROUTE=[[0,35.500,31.065],[.25,35.550,31.070],[.50,35.620,31.075],[.75,35.675,31.070],[1,35.703,31.067]];
+// camera rig keyframes: [t, distance (world units), height above ground (m), heading deg (camera sits this side of climber)]
+const RIG=[
+ [0.00, 45, 1200,  90],
+ [0.15, 70,  900, 200],
+ [0.38, 80,  800, 270],
+ [0.60, 70,  900, 180],
+ [0.80, 55,  700, 330],
+ [1.00, 30,  500, 225],
+];
+const sm=f=>f*f*(3-2*f);
+function seg(arr,t){let i=0;while(i<arr.length-2&&t>arr[i+1][0])i++;
+  const A=arr[i],B=arr[i+1];return [A,B,Math.max(0,Math.min(1,(t-A[0])/(B[0]-A[0])))];}
+let focusLon=ROUTE[0][1],focusLat=ROUTE[0][2],focusH=DEAD_SEA;
+function camAt(t){
+  const [A,B,f0]=seg(ROUTE,t);
+  const lon=A[1]+(B[1]-A[1])*f0, lat=A[2]+(B[2]-A[2])*f0;
+  focusLon=lon;focusLat=lat;focusH=heightAt(lon,lat);
+  const [x,z]=ll2w(lon,lat);
+  const cy=wY(Math.max(focusH,DEAD_SEA))+1.2;
+  climber.position.set(x,cy+1.2,z);beacon.position.set(x,cy+30,z);
+  const [R,S,f1]=seg(RIG,t);const f=sm(f1),L=(a,b)=>a+(b-a)*f;
+  const dist=L(R[1],S[1]),hm=L(R[2],S[2]),hd=L(R[3],S[3])*Math.PI/180;
+  const cx=x+Math.sin(hd)*dist, cz=z-Math.cos(hd)*dist;
+  const clon=LONC+cx/KX, clat=LATC-cz/KY;
+  const ground=Math.max(heightAt(clon,clat),DEAD_SEA);
+  cam.position.set(cx,wY(Math.max(ground+hm,focusH+250)),cz);
+  controls.target.set(x,cy,z);
+  cam.lookAt(controls.target);
+}
+
+/* ================= STORY: 6 ACTS ================= */
+// Only documented history. No ascent, permit, cost or fatality records exist for Mu'tah as a climb.
+const ACTS=[
+ {t:"The Rift",s:"ACT I · THE DEAD SEA SHORE",
+  b:"The climb starts at the Dead Sea, about 430 metres below sea level, the lowest exposed land on Earth. The lake sits in the Jordan Rift, where the Arabian and African plates slide past each other. East of it the plateau of ancient Moab rises roughly 1,500 metres in a single escarpment.",
+  n:"Elevation is read live from SRTM radar data. The Dead Sea surface keeps falling, so today's shoreline is lower than any textbook figure.",
+  st:[["−430 m","Dead Sea level"],["~1,500 m","rise to the plateau"],["Jordan Rift","plate boundary"]]},
+ {t:"The Ascent",s:"ACT II · THE ESCARPMENT · THE KING'S HIGHWAY",
+  b:"The King's Highway runs along the top of this plateau and has carried traffic for over three thousand years. It links the Moabite, Edomite and Nabataean lands, and later Roman and Islamic roads. The Mesha Stele, a Moabite royal inscription of about 840 BCE, was found at Dhiban, some 60 km north of here, in 1868.",
+  n:"The Mesha Stele names Moab's king and his wars with Israel. It is now in the Louvre.",
+  st:[["3,000+ yrs","the King's Highway"],["c. 840 BCE","Mesha Stele"],["1868","found at Dhiban"]]},
+ {t:"The Battle of Mu'tah",s:"ACT III · 629 CE · THE FIRST MARTYRS",
+  b:"In 629 CE (traditionally September, 8 AH) a Muslim force of about 3,000 met a much larger Byzantine and Arab-allied army near Mu'tah. Zayd ibn Harithah fell first, then Ja'far ibn Abi Talib, then Abdullah ibn Rawahah. The army chose Khalid ibn al-Walid, who organised a withdrawal. Muslim tradition records him as Sayf Allah, the Sword of God.",
+  n:"Early sources give enemy numbers from tens of thousands to 200,000; modern historians put them far lower. Accounts of how many Muslims died range from about 8 to 12.",
+  st:[["629 CE","date (traditional)"],["~3,000","Muslim force"],["3","commanders killed"]]},
+ {t:"The Crusader Shadow",s:"ACT IV · 1142–1263 · THE FORTRESS OF KARAK",
+  b:"About 12 km north, Pagan the Butler began Karak castle in 1142 to control the King's Highway and the Dead Sea road. Renaud de Châtillon held it from 1176 and raided caravans. Saladin besieged Karak in 1183 and took it in 1188. The Mamluk sultan Baybars brought it under his rule in 1263.",
+  n:"The castle stands on a spur above the town of Karak, a 15-minute drive from the Mu'tah shrine today.",
+  st:[["1142","castle begun"],["1188","taken by Saladin"],["1263","Mamluk rule"]]},
+ {t:"The Shrine",s:"ACT V · THE MAQAM · 1,400 YEARS OF REMEMBRANCE",
+  b:"Muslim tradition places the graves of Zayd, Ja'far and Abdullah ibn Rawahah at Mazar, the village beside Mu'tah, and pilgrims have visited for centuries. The shrine has been rebuilt and enlarged many times. Mu'tah is also home to Mu'tah University, founded in 1981 as Jordan's military-linked university.",
+  n:"Nobody records a first ascent of this ridge: it is a village and a pilgrimage route, not a climbing objective.",
+  st:[["~1,100 m","plateau elevation"],["3","tombs by tradition"],["1981","Mu'tah University"]]},
+ {t:"The Summit",s:"ACT VI · PANORAMA · THE LEDGER OF THE MOUNTAIN",
+  b:"From the ridge the Dead Sea lies far below to the west and the plateau of Moab runs east to the desert. This ground has seen a Moabite kingdom, a Byzantine frontier, one early Islamic battle, a Crusader march and a modern Jordan, independent since 1946.",
+  n:"This page holds no climbing statistics because none exist for Mu'tah. Every figure above is documented history.",
+  st:[["1946","Jordan independent"],["629 CE","the battle"],["−430 → 1,100 m","your climb"]]},
+];
+const BOUNDS=[0,.15,.38,.60,.80,1.01];
+
+/* ================= SCROLL ================= */
+let scrollT=0,freeMode=false;
+function readScroll(){
+  const max=Math.max(1,document.documentElement.scrollHeight-innerHeight);
+  scrollT=Math.max(0,Math.min(1,(scrollY||0)/max));
+  if(!freeMode)camAt(scrollT);
+}
+addEventListener('scroll',readScroll,{passive:true});
+
+let actIdx=-1;
+function updAct(){
+  let a=0;for(let i=0;i<6;i++)if(scrollT>=BOUNDS[i]&&scrollT<BOUNDS[i+1])a=i;
+  if(a!==actIdx){actIdx=a;const A=ACTS[a];
+    $('cAct').textContent=A.s;$('cT').textContent=A.t;$('cB').textContent=A.b;$('cN').textContent=A.n;
+    $('cStat').innerHTML=A.st.map(s=>`<div><b>${s[0]}</b><i>${s[1]}</i></div>`).join('');
+    document.querySelectorAll('#rail div').forEach((d,i)=>d.classList.toggle('on',i===a));
+    audioAct(a);
+  }
+  $('intro').style.opacity=scrollT<0.02?1:0;
+  $('card').classList.toggle('hide',scrollT<0.03);
+}
+
+/* ================= DAY / NIGHT ================= */
+let hour=9.5,cycling=false;
+const daySky=new THREE.Color(0xbfd4e2),duskSky=new THREE.Color(0x2a2438),nightSky=new THREE.Color(0x05070f);
+const daySun=new THREE.Color(0xfff2dd),duskSun=new THREE.Color(0xff9a5c);
+const cSky=new THREE.Color(),cSun=new THREE.Color();
+function applyTime(){
+  const ang=(hour-6)/12*Math.PI;
+  const el=Math.sin(ang);
+  sun.position.set(Math.cos(ang)*-300,Math.max(el,.02)*380+20,120);
+  const day=THREE.MathUtils.clamp(el*2.2,0,1);
+  const duskP=Math.exp(-Math.pow((hour-18.4)/1.6,2))+Math.exp(-Math.pow((hour-5.8)/1.6,2));
+  cSky.copy(nightSky).lerp(daySky,day).lerp(duskSky,Math.min(1,duskP)*.7);
+  scene.background=cSky;scene.fog.color.copy(cSky);
+  cSun.copy(duskSun).lerp(daySun,day);sun.color.copy(cSun);
+  sun.intensity=.15+day*2.5;hemi.intensity=.15+day*.8;
+  starMat.opacity=Math.max(0,.9-day*1.4);
+  if(water)water.material.color.setHSL(.56,.5,.12+day*.25);
+  const hh=Math.floor(hour),mm=Math.floor((hour-hh)*60);
+  $('tLab').textContent=String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+  $('tRange').value=hour;
+}
+const bCycle=$('bCycle');
+$('tRange').oninput=e=>{hour=+e.target.value;cycling=false;bCycle.classList.remove('on');applyTime();};
+bCycle.onclick=()=>{cycling=!cycling;bCycle.classList.toggle('on',cycling);};
+
+/* ================= LABELS ================= */
+const MARKS=[
+ {n:"Maqam Ja'far al-Tayyar · مقام جعفر",lon:35.703,lat:31.067},
+ {n:"Karak Castle · قلعة الكرك",lon:35.704,lat:31.180},
+ {n:"Dead Sea · البحر الميت",lon:35.455,lat:31.04},
+ {n:"Mu'tah · مؤتة",lon:35.695,lat:31.093},
+];
+const mlabels=MARKS.map(m=>{
+  const el=document.createElement('div');el.className='lbl';el.textContent=m.n;document.body.appendChild(el);
+  const dot=document.createElement('div');dot.className='dot';document.body.appendChild(dot);
+  return {...m,el,dot};
+});
+const pv=new THREE.Vector3();
+function updLabels(){
+  for(const m of mlabels){
+    const y=wY(Math.max(heightAt(m.lon,m.lat),DEAD_SEA))+2;
+    const [x,z]=ll2w(m.lon,m.lat);
+    pv.set(x,y,z).project(cam);
+    const vis=pv.z<1&&pv.x>-.95&&pv.x<.95&&pv.y>-.95&&pv.y<.95;
+    m.el.style.display=vis?'block':'none';m.dot.style.display=vis?'block':'none';
+    if(vis){const sx=(pv.x*.5+.5)*innerWidth,sy=(-pv.y*.5+.5)*innerHeight;
+      m.el.style.left=sx+'px';m.el.style.top=(sy-12)+'px';m.dot.style.left=sx+'px';m.dot.style.top=sy+'px';}
+  }
+}
+
+/* ================= FRAME-BY-FRAME PERFORMANCE ENGINE =================
+   Every frame: smooth the measured frame time, then nudge render scale up or down.
+   Pixel ratio is only applied when it has drifted enough to be worth a canvas resize.
+   Below 0.62 shadows switch off; fog distance tracks the same scale.            */
+const TARGET_MS=17.5, MAX_PR=Math.min(devicePixelRatio||1,2);
+let rScale=0.8, appliedPR=0, ema=16.7, lastT=0, frameN=0;
+function perfFrame(now){
+  const dt=lastT?Math.min(now-lastT,100):16.7; lastT=now; frameN++;
+  ema+= (dt-ema)*0.08;
+  if(frameN>20){
+    if(ema>TARGET_MS)      rScale-=Math.min(0.02,0.0012*(ema-TARGET_MS));
+    else if(ema<TARGET_MS-3) rScale+=0.0006;
+    rScale=Math.max(0.4,Math.min(1,rScale));
+  }
+  const pr=Math.max(0.5,MAX_PR*rScale);
+  if(Math.abs(pr-appliedPR)>0.05){appliedPR=pr;renderer.setPixelRatio(pr);renderer.setSize(innerWidth,innerHeight);}
+  const shadows=rScale>0.62;
+  if(sun.castShadow!==shadows){sun.castShadow=shadows;}
+  scene.fog.far=500+rScale*700;
+  if(frameN%10===0){
+    $('pQ').textContent=Math.round(rScale*100)+'%';
+    $('pF').textContent=Math.round(1000/Math.max(ema,1));
+  }
+}
+
+/* ================= GENERATIVE 6-ACT SCORE (Web Audio, original) ================= */
+const NOTE=m=>440*2**((m-69)/12);
+const SCALES={phrygian:[0,1,3,5,7,8,10],hijaz:[0,1,4,5,7,8,11],
+  minor:[0,2,3,5,7,8,10],major:[0,2,4,5,7,9,11],dorian:[0,2,3,5,7,9,10]};
+const AC=[
+ {root:38,sc:'phrygian',tempo:40,bright:500, pad:.9, pluck:.05,lead:0, bell:.05,drum:0, dens:.15,drone:.5},
+ {root:45,sc:'dorian',  tempo:52,bright:900, pad:.8, pluck:.3, lead:0, bell:.2, drum:0, dens:.3, drone:.4},
+ {root:45,sc:'phrygian',tempo:96,bright:1400,pad:.45,pluck:0, lead:.7,bell:0,  drum:.8,dens:.55,drone:.5},
+ {root:50,sc:'hijaz',   tempo:80,bright:1800,pad:.35,pluck:.8,lead:.25,bell:0, drum:.3,dens:.5, drone:.35},
+ {root:43,sc:'minor',   tempo:46,bright:1100,pad:1,  pluck:0, lead:0, bell:.3, drum:0, dens:.25,drone:.45},
+ {root:47,sc:'major',   tempo:60,bright:2400,pad:.8, pluck:.2,lead:.3,bell:.8, drum:0, dens:.6, drone:.3},
+];
+let ACX=null,layers={},actG={},curAct=0,scoreOn=false,nextBeat=0,beatN=0;
+function initAudio(){
+  ACX=new (window.AudioContext||window.webkitAudioContext)();
+  const master=ACX.createDynamicsCompressor();
+  const mg=ACX.createGain();mg.gain.value=.8;master.connect(mg);mg.connect(ACX.destination);
+  for(const k of ['pad','pluck','lead','bell','drum','drone']){
+    const g=ACX.createGain();g.gain.value=0;g.connect(master);actG[k]=g;}
+  const o1=ACX.createOscillator(),o2=ACX.createOscillator(),lp=ACX.createBiquadFilter();
+  o1.type='sawtooth';o2.type='sawtooth';o2.detune.value=6;lp.type='lowpass';
+  o1.connect(lp);o2.connect(lp);lp.connect(actG.drone);o1.start();o2.start();
+  layers.drone={o1,o2,lp};
+  nextBeat=ACX.currentTime+.1;
+  setInterval(scheduler,120);
+}
+function scheduler(){
+  if(!ACX||!scoreOn)return;
+  const A=AC[curAct];
+  while(nextBeat<ACX.currentTime+.35){
+    const t=nextBeat,bd=60/A.tempo;
+    if(beatN%4===0)chordPad(t,bd*4,A);
+    if(Math.random()<A.dens&&A.pluck>0)ksPluck(NOTE(A.root+12+pickScale(A)),t,.5*A.pluck,actG.pluck,A);
+    if(Math.random()<A.dens*.7&&A.bell>0)bell(NOTE(A.root+24+pickScale(A)),t,.4*A.bell,actG.bell);
+    if(Math.random()<A.dens*.6&&A.lead>0)leadNote(NOTE(A.root+24+pickScale(A)),t,bd*1.8,A);
+    if(A.drum>0){if(beatN%2===0)kick(t,actG.drum);if(beatN%8===4)tom(t,actG.drum);if(beatN%4===2&&Math.random()<.6)snare(t,actG.drum);}
+    nextBeat+=bd/2;beatN++;
+  }
+  const d=layers.drone,T=ACX.currentTime;
+  d.o1.frequency.setTargetAtTime(NOTE(A.root-12),T,.8);
+  d.o2.frequency.setTargetAtTime(NOTE(A.root-12),T,.8);
+  d.lp.frequency.setTargetAtTime(A.bright,T,.8);
+}
+function pickScale(A){const s=SCALES[A.sc];return s[Math.floor(Math.random()*s.length)]+(Math.random()<.3?12:0);}
+function env(g,t,a,peak,dec){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(peak,t+a);
+  g.gain.exponentialRampToValueAtTime(.0001,t+a+dec);}
+function chordPad(t,dur,A){
+  const s=SCALES[A.sc];
+  [0,2,4].forEach((k,i)=>{const f=NOTE(A.root+12+s[k%s.length]);
+    const o=ACX.createOscillator();o.type='triangle';o.frequency.value=f;o.detune.value=(i-1)*5;
+    const g=ACX.createGain();o.connect(g);g.connect(actG.pad);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.11,t+dur*.3);
+    g.gain.linearRampToValueAtTime(.0001,t+dur*1.05);o.start(t);o.stop(t+dur*1.1);});
+}
+function ksPluck(freq,t,vol,dest,A){
+  const d=ACX.createDelay(),fb=ACX.createGain(),lp=ACX.createBiquadFilter(),g=ACX.createGain();
+  d.delayTime.value=1/freq;fb.gain.value=.965;lp.type='lowpass';lp.frequency.value=A.bright*2;
+  d.connect(lp);lp.connect(fb);fb.connect(d);
+  const src=ACX.createBufferSource(),buf=ACX.createBuffer(1,ACX.sampleRate*.02|0,ACX.sampleRate),ch=buf.getChannelData(0);
+  for(let i=0;i<ch.length;i++)ch[i]=Math.random()*2-1;
+  src.buffer=buf;src.connect(d);d.connect(g);g.connect(dest);env(g,t,.003,vol,1.2);
+  src.start(t);src.stop(t+.05);
+}
+function bell(f,t,vol,dest){
+  [[1,.6],[2.76,.25],[5.4,.1]].forEach(hm=>{const o=ACX.createOscillator();o.type='sine';o.frequency.value=f*hm[0];
+    const g=ACX.createGain();o.connect(g);g.connect(dest);env(g,t,.005,vol*hm[1],2.2);o.start(t);o.stop(t+2.5);});
+}
+function leadNote(f,t,dur,A){
+  const o=ACX.createOscillator();o.type='sawtooth';o.frequency.value=f;
+  const vib=ACX.createOscillator();vib.frequency.value=5.5;const vg=ACX.createGain();vg.gain.value=4;
+  vib.connect(vg);vg.connect(o.detune);
+  const lp=ACX.createBiquadFilter();lp.type='lowpass';lp.frequency.value=A.bright;lp.Q.value=2;
+  const g=ACX.createGain();o.connect(lp);lp.connect(g);g.connect(actG.lead);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.16,t+.15);
+  g.gain.setTargetAtTime(.0001,t+dur,.15);o.start(t);o.stop(t+dur+.8);vib.start(t);vib.stop(t+dur+.8);
+}
+function kick(t,dest){const o=ACX.createOscillator();o.frequency.setValueAtTime(130,t);
+  o.frequency.exponentialRampToValueAtTime(45,t+.12);const g=ACX.createGain();
+  o.connect(g);g.connect(dest);env(g,t,.002,.9,.25);o.start(t);o.stop(t+.3);}
+function snare(t,dest){const s=ACX.createBufferSource(),b=ACX.createBuffer(1,3000,ACX.sampleRate),ch=b.getChannelData(0);
+  for(let i=0;i<3000;i++)ch[i]=(Math.random()*2-1)*(1-i/3000);s.buffer=b;
+  const bp=ACX.createBiquadFilter();bp.type='bandpass';bp.frequency.value=1800;
+  const g=ACX.createGain();s.connect(bp);bp.connect(g);g.connect(dest);env(g,t,.001,.5,.15);s.start(t);}
+function tom(t,dest){const o=ACX.createOscillator();o.frequency.setValueAtTime(180,t);
+  o.frequency.exponentialRampToValueAtTime(70,t+.2);const g=ACX.createGain();
+  o.connect(g);g.connect(dest);env(g,t,.002,.7,.3);o.start(t);o.stop(t+.4);}
+function audioAct(a){
+  curAct=a;if(!ACX||!scoreOn)return;
+  const T=ACX.currentTime,A=AC[a];
+  for(const k of ['pad','pluck','lead','bell','drum','drone'])
+    actG[k].gain.setTargetAtTime(A[k]??0,T,2.2);
+}
+function setScore(on){
+  scoreOn=on;
+  if(on&&!ACX)initAudio();
+  if(ACX){ACX.resume();
+    if(on)audioAct(curAct);
+    else{const T=ACX.currentTime;for(const k in actG)actG[k].gain.setTargetAtTime(0,T,.4);}}
+  $('bSnd').classList.toggle('on',on);
+}
+
+/* ================= EXPERIENCE (CINEMATIC) MODE ================= */
+let cinema=false,cinePos=0,cineLast=0;
+const CINE_SECONDS=120;
+const bExp=$('bExp');
+function setCinema(on){
+  cinema=on;bExp.classList.toggle('on',on);
+  bExp.textContent=on?'■ STOP':'▶ EXPERIENCE';
+  $('hud').style.opacity=on?.25:1;$('timebox').style.opacity=on?.25:1;
+  if(on){
+    if(freeMode)$('bOrbit').click();
+    setScore(true);
+    if(scrollY>document.documentElement.scrollHeight-innerHeight-10)window.scrollTo(0,0);
+    cinePos=scrollY;cineLast=0;
+    try{document.documentElement.requestFullscreen().catch(()=>{});}catch(e){}
+  }else{try{if(document.fullscreenElement)document.exitFullscreen();}catch(e){}}
+}
+bExp.onclick=()=>setCinema(!cinema);
+addEventListener('wheel',()=>{if(cinema)setCinema(false);},{passive:true});
+addEventListener('touchstart',()=>{if(cinema)setCinema(false);},{passive:true});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&cinema)setCinema(false);});
+
+/* ================= UI ================= */
+$('bSnd').onclick=()=>setScore(!scoreOn);
+$('bOrbit').onclick=()=>{freeMode=!freeMode;controls.enabled=freeMode;$('bOrbit').classList.toggle('on',freeMode);
+  $('bOrbit').textContent=freeMode?'✋ EXIT FREE VIEW':'✋ FREE VIEW';if(!freeMode)readScroll();};
+$('bReset').onclick=()=>{if(cinema)setCinema(false);window.scrollTo({top:0,behavior:'smooth'});};
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);});
+
+/* ================= BOOT & MAIN LOOP ================= */
+(async()=>{
+  const offline=location.search.includes('offline');
+  try{
+    if(offline)throw new Error('offline');
+    await fetchElev();
+  }catch(e){live=false;proceduralFallback();imgCanvas=null;}
+  if(live){
+    try{await fetchImg();}
+    catch(e){imgCanvas=null;dataMode='SRTM · NO IMAGERY';}
+  }
+  $('pD').textContent=dataMode;
+  buildTerrain();applyTime();readScroll();updAct();
+  const l=$('loader');l.style.opacity=0;setTimeout(()=>l.remove(),900);
+  requestAnimationFrame(loop);
+})();
+
+function loop(now){
+  requestAnimationFrame(loop);
+  perfFrame(now);
+  if(cycling){hour=(hour+24/90/60)%24;applyTime();}
+  if(cinema){
+    const dt=cineLast?Math.min((now-cineLast)/1000,.1):0;cineLast=now;
+    const max=document.documentElement.scrollHeight-innerHeight;
+    cinePos+=max/CINE_SECONDS*dt;
+    if(cinePos>=max){window.scrollTo(0,max);setCinema(false);}
+    else window.scrollTo(0,cinePos);
+  }
+  if(freeMode)controls.update();
+  const h=Math.round(Math.max(focusH,DEAD_SEA));
+  $('altv').textContent=(h<0?'−':'')+Math.abs(h).toLocaleString('en-US');
+  updAct();updLabels();
+  renderer.render(scene,cam);
+}
+</script>
+</body>
+</html>
